@@ -223,7 +223,7 @@ While binary associations succeed, multi-turn sequence continuation sometimes re
 * *"The capital of France is Paris [...] The capital of Spain is" [..] "the capital of the United States."*
 * *"apple red, banana yellow, grape purple [...] grape" [..] "yellow, and grapefruit."*
 
-* **Root Cause:** Reflects the fundamental boundary of models relying on static temporal decay matrices ($g = 0.996$). Without fully dynamic, data-dependent decay gates ($\gamma_{t} = \sigma(Wx_{t})$), the associative memory fades at a constant metric rate, making exact multi-hop induction heads harder to stabilize.
+* **Root Cause:** Reflects the fundamental boundary of models relying on static temporal decay matrices ($g = 0.996$). Without fully dynamic, **data-dependent decay gates**, the associative memory fades at a constant metric rate, making exact multi-hop induction heads harder to stabilize.
 
 #### C. Formal Structure & Symbolic Arithmetic
 As expected for a ~100M parameter base model pre-trained on open-domain web text without instruction tuning or math-specific curricula:
