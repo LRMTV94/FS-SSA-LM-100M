@@ -77,10 +77,12 @@ With causal row normalisation and no Softmax, every past key contributes with we
 * **Per-head decay ladder ($\gamma_{\text{var}}$).** Replacing the single scalar with **one fixed $\gamma$ per head**, geometrically spaced so that the effective windows $1/(1-\gamma)$ run from 8 to 1024 tokens, gives the final **37.44 perplexity**. A single decay rate forces every head to the same memory horizon; a ladder lets some heads specialise on local syntax while others carry sentence-level and paragraph-level context. This costs **zero added parameters**: the decay matrix is a constant buffer.
 
 <p align="center">
+
   | head | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
   |---|---|---|---|---|---|---|---|---|---|
   | $\gamma$ | 0.875 | 0.93184 | 0.96284 | 0.97974 | 0.98895 | 0.99398 | 0.99672 | 0.99821 | 0.99902 |
   | window | 8 | 15 | 27 | 49 | 91 | 166 | 304 | 558 | 1024 |
+  
 </p>
 
 
