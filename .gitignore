@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.pt
+*.pth
+fineweb_train_gpt2.bin
+fineweb_val_gpt2.bin
+*.bin
+*_state.json
+fsssa_fineweb_100m_state.json
