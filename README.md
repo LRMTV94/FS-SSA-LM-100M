@@ -91,7 +91,7 @@ With causal row normalisation and no Softmax, every past key contributes with we
 
 The transition from uncalibrated discrete spikes to competitive language modeling requires solving the **quantization homogeneity trap**. In standard SNNs, forcing every neuron to emit identical unit-amplitude spikes ($\pm 1$) severely flattens the representational geometry.
 
-
+* Incorporating bounded per-channel gain parameters $\alpha_c in (0, 1)$ accounts for a direct reduction of **$-0.0966$ in loss** (**$-4.64$ PPL**, moving from **50.50 to 45.86**).
 
 * Mechanistically, $\alpha$ reintroduces **biological neural heterogeneity**:
 
