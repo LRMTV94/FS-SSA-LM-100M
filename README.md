@@ -216,7 +216,7 @@ Under unpenalized greedy search, the model frequently falls into periodic degene
 
 * **Inference Remedy:** In practice, this is mitigated at inference time using standard decoding constraints:
   * Applying a modest **repetition penalty** ($\approx 1.15 - 1.20$);
-  * Using **Nucleus (Top-$p$) Sampling** ($p = 0.90, T = 0.75$) instead of pure greedy argmax.
+  * Using **Nucleus (Top-p) Sampling** ($p = 0.90, T = 0.75$) instead of pure greedy argmax.
 
 #### B. In-Context Pattern Generalization (Static Decay Bottleneck)
 While binary associations succeed, multi-turn sequence continuation sometimes retrieves broad semantic categories rather than exact relational mappings:
@@ -298,7 +298,7 @@ python generate.py          # generation test
 If you use this codebase or the FS-SSA architecture in your research, please cite:
 
 ```bibtex
-@software{FS-SSA-GPT — Causal Spiking Self-Attention on TinyShakespeare and TinyStories,
+@software{FS-SSA-GPT — Causal Spiking Self-Attention on FineWeb,
   author    = {Lo Russo Matteo Vito},
   title     = {FS-SSA-GPT},
   year      = {2026},
