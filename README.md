@@ -159,7 +159,6 @@ Due to academic compute budget constraints on single-GPU hardware (NVIDIA A100-S
 However, multi-seed evaluations across independent initializations demonstrate that the stochastic variance of the spiking architecture remains tight ($\sigma = 0.025$ nats, ~1.93 PPL), **confirming** that the convergence dynamics are strictly reproducible and do not suffer from random initialization collapse.
 
 <p align="center">
-
 | Model Variant | Seed | Best Iter | Best Val Loss | Best PPL |
 | :--- | :---: | :---: | :---: | :---: |
 | **FS-SSA (Dynamic γ + Learnable α)** | 0 | 2000 | 4.28 | 72.28 |
