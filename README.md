@@ -220,8 +220,8 @@ Under unpenalized greedy search, the model frequently falls into periodic degene
 
 #### B. In-Context Pattern Generalization (Static Decay Bottleneck)
 While binary associations succeed, multi-turn sequence continuation sometimes retrieves broad semantic categories rather than exact relational mappings:
-* *"The capital of France is Paris [...] The capital of Spain is" $\to$ "the capital of the United States."*
-* *"apple red, banana yellow, grape purple [...] grape" $\to$ "yellow, and grapefruit."*
+* *"The capital of France is Paris [...] The capital of Spain is" [..] "the capital of the United States."*
+* *"apple red, banana yellow, grape purple [...] grape" [..] "yellow, and grapefruit."*
 
 * **Root Cause:** Reflects the fundamental boundary of models relying on static temporal decay matrices ($g = 0.996$). Without fully dynamic, data-dependent decay gates ($\gamma_t = \sigma(Wx_t)$), the associative memory fades at a constant metric rate, making exact multi-hop induction heads harder to stabilize.
 
