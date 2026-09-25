@@ -291,6 +291,8 @@ python generate.py          # generation test
 
 - Lo Russo M.V., https://doi.org/10.5281/zenodo.22048497, Few-Spikes Transformer with Spiking Self-Attention
 
+- Lo Russo M.V., https://doi.org/10.5281/zenodo.22702448, FS-SSA-GPT
+
 ---
 
 ## Citation and Acknowledgements
@@ -298,13 +300,13 @@ python generate.py          # generation test
 If you use this codebase or the FS-SSA architecture in your research, please cite:
 
 ```bibtex
-@software{FS-SSA-GPT — Causal Spiking Self-Attention on Tiniweb,
+@software{FS-SSA-GPT — Causal Spiking Self-Attention on FineWeb,
   author    = {Lo Russo Matteo Vito},
-  title     = {FS-SSA-GPT},
+  title     = {FS-SSA-GPT on FineWeb},
   year      = {2026},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.22702449},
-  url       = {https://doi.org/10.5281/zenodo.22702449}
+  doi       = {10.5281/zenodo.22950218},
+  url       = {https://doi.org/10.5281/zenodo.22950217}
 ```
 
 Thanks for your.... Attention! 😄
