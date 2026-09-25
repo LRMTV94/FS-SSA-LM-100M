@@ -48,7 +48,6 @@ window = [0, s·(2 − 2^-(K-1)))     →  2s  as K → ∞
 
 with a hard ceiling at `2s`: raising K refines the quantisation step but can never widen the range, so a badly chosen `s` cannot be repaired with more spike levels. At `s = 0.750` and K=2, 13% of channels land outside the window and clip.
 
-> The 13% clipping figure and the ~13.1% firing rate in Key Findings are two different quantities that happen to sit at a similar value: one is the fraction of channels exceeding the quantiser ceiling, the other is the fraction of spike slots that fire. They should not be read as the same measurement.
 
 ### A prediction about the sign
 
