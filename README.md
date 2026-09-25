@@ -298,7 +298,7 @@ python generate.py          # generation test
 If you use this codebase or the FS-SSA architecture in your research, please cite:
 
 ```bibtex
-@software{FS-SSA-GPT — Causal Spiking Self-Attention on FineWeb,
+@software{FS-SSA-GPT — Causal Spiking Self-Attention on Tiniweb,
   author    = {Lo Russo Matteo Vito},
   title     = {FS-SSA-GPT},
   year      = {2026},
