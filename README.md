@@ -303,8 +303,8 @@ If you use this codebase or the FS-SSA architecture in your research, please cit
   title     = {FS-SSA-GPT},
   year      = {2026},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.22048497},
-  url       = {https://doi.org/10.5281/zenodo.22702448}
+  doi       = {10.5281/zenodo.22702449},
+  url       = {https://doi.org/10.5281/zenodo.22702449}
 ```
 
 Thanks for your.... Attention! 😄
