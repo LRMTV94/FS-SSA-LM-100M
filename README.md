@@ -104,7 +104,7 @@ Together, the synergy of **signed suppression ($\pm$)**, **temporal memory modul
 
 ---
 
-## Benchmark & Ablation Results (FineWeb-Edu ~100M)
+## Benchmark & Ablation Results (FineWeb-Edu ~94M)
 
 The table below summarizes the architectural ablation ladder on **FineWeb-Edu** (~655M tokens seen across 10,000 steps), highlighting how each progressive component contributes to closing the performance gap with the continuous full-precision baseline.
 
