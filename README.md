@@ -1,4 +1,4 @@
-# FS-SSA-GPT: Causal Spiking Self-Attention on FineWeb-Edu (~94M Parameters)
+# FS-SSA-LM: Causal Spiking Self-Attention on FineWeb-Edu (~94M Parameters)
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
