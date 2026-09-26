@@ -1,6 +1,6 @@
 # FS-SSA-GPT: Causal Spiking Self-Attention on FineWeb-Edu (~94M Parameters)
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/FS_Softmax_Free_Attention), scaling **Softmax-Free Spiking Self-Attention (FS-SSA)** from synthetic classifiers and toy benchmarks to open-domain autoregressive pretraining at the **~94M parameter scale** on **FineWeb-Edu**.
 
