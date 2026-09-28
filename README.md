@@ -280,7 +280,7 @@ In accordance with conservative scientific reporting standards, the main benchma
 The official pretrained checkpoint is publicly accessible on the Hugging Face Hub:
 
 * **Model Hub:** [Matt-94/FS-SSA-LM-100M](https://huggingface.co/Matt-94/FS-SSA-LM-100M)
-* **Checkpoint File:** `ckpt_fineweb_100m_ssa_K=2_p-_L_g_var_alpha_app_s1.pt` (~1.7 GB)
+* **Checkpoint File:** `model.pt` (~1.7 GB)
 
 You can programmatically fetch and load the weights in Python using `huggingface_hub`:
 
@@ -293,7 +293,7 @@ from huggingface_hub import hf_hub_download
 # -----------------------------------------------
 
 weights_path = hf_hub_download(
-    repo_id="Matt-94/FS-SSA-GPT-100M",
+    repo_id="Matt-94/FS-SSA-LM-100M",
     filename="model.pt",
 )
 
