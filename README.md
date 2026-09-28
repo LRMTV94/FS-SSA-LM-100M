@@ -297,7 +297,7 @@ weights_path = hf_hub_download(
     filename="model.pt",
 )
 
-# Here you need to define the FS-SSA-MODEL (look model.py)
+# Here you need to define the FS-SSA-GPT Model (look model.py)
 
 # -------------------------------------------------------
 #              Load state dict into model
@@ -353,9 +353,9 @@ print("FS-SSA-LM-94M weights loaded successfully!")
 If you use this codebase or the FS-SSA architecture in your research, please cite:
 
 ```bibtex
-@software{FS-SSA-GPT — Causal Spiking Self-Attention on FineWeb,
+@software{FS-SSA-LM — Causal Spiking Self-Attention on FineWeb,
   author    = {Lo Russo Matteo Vito},
-  title     = {FS-SSA-GPT on FineWeb},
+  title     = {FS-SSA-LM on FineWeb},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.22950218},
