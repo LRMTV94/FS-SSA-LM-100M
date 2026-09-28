@@ -307,7 +307,7 @@ checkpoint = torch.load(weights_path, map_location="cpu")
 model.load_state_dict(checkpoint["model_state_dict"])
 model.eval()
 
-print("FS-SSA-GPT-94M weights loaded successfully!")
+print("FS-SSA-LM-94M weights loaded successfully!")
 ```
 
 ---
