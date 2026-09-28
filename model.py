@@ -87,7 +87,7 @@ N_HEADS    = 9
 N_LAYER    = 16
 MLP_RATIO  = 4
 DROPOUT    = 0.
-
+,
 MAX_ITERS      = 10000
 EVAL_INTERVAL  = 250
 EVAL_ITERS     = 40       # batches averaged per evaluation
