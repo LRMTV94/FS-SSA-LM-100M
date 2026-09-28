@@ -355,7 +355,7 @@ If you use this codebase or the FS-SSA architecture in your research, please cit
 ```bibtex
 @software{FS-SSA-LM — Causal Spiking Self-Attention on FineWeb,
   author    = {Lo Russo Matteo Vito},
-  title     = {FS-SSA-LM on FineWeb},
+  title     = {FS-SSA-LM: Causal Spiking Self-Attention on FineWeb-Edu},
   year      = {2026},
   publisher = {Zenodo},
   doi       = {10.5281/zenodo.22950218},
