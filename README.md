@@ -133,7 +133,7 @@ The table below summarizes the architectural ablation ladder on **FineWeb-Edu** 
    
    * Introducing **data-dependent dynamic selection** (`gamma_var`): $-8.42$ PPL ($45.86 \to \mathbf{37.44}$)
    
-2. **The Pareto Efficiency Frontier:** The final model achieves **PPL 37.40** within a delta of just **$+0.2645$ loss** from the dense Softmax Transformer, while replacing continuous floating-point MACs with sparse discrete event accumulations at an ultra-low latency of $K=2$.
+2. **The Pareto Efficiency Frontier:** The final model achieves **PPL 37.44** within a delta of just **$+0.2645$ loss** from the dense Softmax Transformer, while replacing continuous floating-point MACs with sparse discrete event accumulations at an ultra-low latency of $K=2$.
 
 ---
 
