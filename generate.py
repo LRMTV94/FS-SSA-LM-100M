@@ -143,10 +143,12 @@ def get_codec(vocab):
     g = globals()
     if callable(g.get("encode")) and callable(g.get("decode")):
         return g["encode"], g["decode"], "encode/decode from your script"
+        
     for nm in ("enc", "tokenizer", "tok", "gpt2"):
         o = g.get(nm)
         if o is not None and hasattr(o, "encode") and hasattr(o, "decode"):
             return o.encode, o.decode, f"{nm} = {type(o).__name__} in scope"
+            
     if isinstance(g.get("stoi"), dict) and g.get("itos") is not None:
         si, it = g["stoi"], g["itos"]
         return (lambda s: [si[c] for c in s if c in si],

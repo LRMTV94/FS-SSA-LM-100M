@@ -125,7 +125,7 @@ The table below summarizes the architectural ablation ladder on **FineWeb-Edu** 
 
 1. **Ablation Monotonicity:** Each architectural innovation provides a measurable, non-overlapping performance gain:
 
-   * Adding **bipolar signed spikes & leakiness** (`+/- L`): $-11.71$ PPL ($70.82 \to 59.11$)
+   * Adding **bipolar signed spikes & L** (`+/- L`): $-11.71$ PPL ($70.82 \to 59.11$)
    
    * Adding **causal temporal decay** (`g=0.996`): $-8.61$ PPL ($59.11 \to 50.50$)
    
