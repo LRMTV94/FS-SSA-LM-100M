@@ -297,7 +297,7 @@ weights_path = hf_hub_download(
     filename="model.pt",
 )
 
-# Here you need to define the FS-SSA-GPT Model (look model.py)
+# Here you need to define the FS-SSA-GPT Model (see model.py)
 
 # -------------------------------------------------------
 #              Load state dict into model
