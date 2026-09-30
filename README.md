@@ -153,7 +153,7 @@ The evaluation curves below illustrate the optimization trajectory across the 10
 
 ### Multi-Seed Reproducibility & Stability
 
-Due to academic compute budget constraints on single-GPU hardware (NVIDIA A100-SXM4-80GB), the complete 10,000-iteration scaling ablation was executed on **Seed 1**. 
+Due to compute budget constraints on single-GPU hardware (NVIDIA A100-SXM4-80GB), the complete 10,000-iteration scaling ablation was executed on **Seed 1**. 
 
 However, multi-seed evaluations across independent initializations demonstrate that the stochastic variance of the spiking architecture remains tight ($\sigma = 0.025$ nats, ~1.93 PPL), **confirming** that the convergence dynamics are strictly reproducible and do not suffer from random initialization collapse.
 
