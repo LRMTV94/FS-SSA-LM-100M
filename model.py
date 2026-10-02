@@ -80,26 +80,26 @@ def gamma_ladder(n_heads, w_min, w_max):
 #                 MODEL CONFIGURATION ~100M PARAMETRS
 # =====================================================================
 
-
 BLOCK      = 1024
 D_MODEL    = 576
 N_HEADS    = 9
 N_LAYER    = 16
 MLP_RATIO  = 4
 DROPOUT    = 0.
-,
-MAX_ITERS      = 10000
-EVAL_INTERVAL  = 250
+
+MAX_ITERS      = 10000    # Max Iterations
+EVAL_INTERVAL  = 250      # N. It
 EVAL_ITERS     = 40       # batches averaged per evaluation
 MICRO_BATCH    = 16       # what goes on the GPU at once
 GRAD_ACCUM     = 4        # Effective batch = MICRO_BATCH * GRAD_ACCUM = 64
-LR             = 1e-3     # Warmup Epochs
-WARMUP         = 500
-MIN_LR         = 1e-4
-GRAD_CLIP      = 1.0
-SEEDS          = [1]
+LR             = 1e-3     # Learning Rate
 
-WIDTH          = 1.1      # surrogate half-width
+WARMUP         = 500      # Warmup Epochs (%5-MAX ITERS)
+MIN_LR         = 1e-4     # Min. Learning Rate
+GRAD_CLIP      = 1.0      # Gradient Clip
+SEEDS          = [1]      # Seed's number (for multiseed valutaion)
+
+WIDTH          = 1.1      # Surrogate half-width
 READOUT_SCALE  = 1.0      # r; neuron gain is r/s, spike count depends on s only
 QK_SIGMA_MULT   = 0.75    # qk_scale  = this x measured std of the RMSNormed Q/K/V
 MLP_SIGMA_MULT  = 1.0     # mlp_scale = this x measured std of the MLP pre-activation
@@ -124,8 +124,8 @@ gamma_window = lambda g: float("inf") if g >= 1.0 else 1.0 / (1.0 - g)
 #   gamma      -> gamma values (constant)
 
 CONFIGS = [
-#   ("softmax + gelu",           "softmax",   "gelu",   2, False, False, BLOCK, False, None),
-#   ("ssa K=2 +/- L",                "ssa",     "fs",   2, True,  True,  BLOCK, False, None),
+    ("softmax + gelu",           "softmax",   "gelu",   2, False, False, BLOCK, False, None),
+    ("ssa K=2 +/- L",                "ssa",     "fs",   2, True,  True,  BLOCK, False, None),
     ("ssa K=2 +/- L g d=0.996",    "ssa",     "fs",   2, True,  True,  BLOCK, True,  0.996),
     ("ssa K=2 +/- L g d=0.996",    "ssa",     "fs",   2, True,  True,  BLOCK, True,  gamma_ladder(N_HEADS, W_MIN, W_MAX)),
 ]
@@ -410,7 +410,7 @@ class SignedFSNeuron(nn.Module):
         self.width = width
         self.fs_on = make_fs(K, width, threshold_scale, readout_scale, learnable, per_channel, n_channels)
         self.fs_off = make_fs(K, width, threshold_scale, readout_scale, learnable, per_channel, n_channels)
-        self.alpha = nn.Parameter(0.1 + 0.9 * torch.rand(n_channels))                                        # alpha is alearnable parameter
+        self.alpha = nn.Parameter(0.1 + 0.9 * torch.rand(n_channels))                                        # alpha is a learnable parameter
 
     def forward(self, x):
         return self.alpha * (self.fs_on(x) - self.fs_off(-x))
@@ -520,8 +520,8 @@ class CausalSpikingSelfAttention(nn.Module):
             g = torch.tensor(self.gammas, dtype=torch.float32)[:, None, None]
             idx = torch.arange(block, dtype=torch.float32)
 
-            dist = (idx[:, None] - idx[None, :]).clamp(min=0)          # dist[i,j] = i-j
-            D = torch.pow(g, dist[None]) * self.mask                   # (H, T, T)
+            dist = (idx[:, None] - idx[None, :]).clamp(min=0)
+            D = torch.pow(g, dist[None]) * self.mask
             self.register_buffer("decay", D)
             self.register_buffer("decay_sum", D.sum(-1, keepdim=True))
 
@@ -565,6 +565,7 @@ class Block(nn.Module):
             self.attn = CausalSpikingSelfAttention(d_model, n_heads, K, width, qk_scale, readout_scale, signed, learnable, dropout, block, use_decay, gamma)
         else:
             raise ValueError(attention)
+            
         self.norm2 = RMSNorm(d_model)
         hidden = d_model * MLP_RATIO
 
