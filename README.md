@@ -170,7 +170,7 @@ An empirical examination of the **first differences and incremental rates of pro
 1. **The Dense Baseline Flatline ($\Delta \text{Loss} = -0.0010$):**
    Between steps 6,250 and 7,500 (spanning 1,250 steps and ~82M tokens), the dense Transformer baseline effectively stalled. Its validation loss oscillated non-monotonically between $3.54$ and $3.56$ ($3.5409 \to 3.5594 \to 3.5595 \to 3.5448 \to 3.5524 \to 3.5399$), yielding an imperceptible net improvement of just **$-0.0010$ nats** ($-0.04$ PPL). Allocating further single-GPU compute budget to extend the dense baseline to 10,000 steps would have burned hours of A100 time on an empirical flatline.
 
-2. **Sustained SNN Plasticity (~70× Optimization Rate):**
+2. **Sustained SNN Plasticity:**
    In that exact same 6,250–7,500 window, the  last `FS-SSA` spiking architecture (with Dynamic γ + Learnable α), had an optimization velocity **~69.1 times faster** than the dense control. Unlike the dense model, the spiking model showed no evidence of capacity exhaustion.
 
 3. **Asymptotic Convergence vs. Premature SNN Saturation:**
