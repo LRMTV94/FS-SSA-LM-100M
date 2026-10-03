@@ -9,10 +9,11 @@
 #  other and a seed means the same thing in both.
 #
 #  Measures validation loss and perplexity for a causal spiking attention
-#  against a matched softmax control, and samples text from each.
+#  against a matched softmax control, against a matched softmax control. 
+#  Text samples come from generate.py.
 #
 #  ---------------------------------------------------------------------
-#  THREE THINGS DIFFER FROM THE CLASSIFIER, AND ALL THREE ARE FORCED
+#  FOUR THINGS DIFFER FROM THE CLASSIFIER, AND ALL THREE ARE FORCED
 #
 #  1) RMSNorm replaces BatchNorm on Q/K/V. BatchNorm1d over (B, C, T) pools
 #     statistics over TIME as well as batch, so in a causal model the
@@ -32,7 +33,7 @@
 #     from it. Recall that the resolved window is [0, s*(2 - 2^-(K-1))),
 #     with a ceiling at 2s: raising K refines the step, never the range.
 #
-#  4) In the current script, the channel-wise in Learnable Neuron is learnable
+#  4) In the current script, the channel-wise in Learnable Neuron  alpha is learnable
 #     by default.In prior baseline runs (e.g., K=2, K=2 +/- L), learnable alpha 
 #     was disabled by default (held static). This setup is currently provisional: 
 #     future releases will introduce a dedicated configuration flag (e.g., 
@@ -119,15 +120,13 @@ gamma_window = lambda g: float("inf") if g >= 1.0 else 1.0 / (1.0 - g)
 #   signed     -> ON/OFF pair on Q and K, so they carry a sign
 #   learnable  -> per-channel learnable threshold ladder, attention AND MLP
 #   block      -> context length for THIS config
-#   use_decay  -> per-head learnable gamma^(i-j) in place of the flat row mean;
-#                 the softmax control has no row mean, so it ignores this
-#   gamma      -> gamma values (constant)
+#   use_decay  -> per-head learnable gamma^(i-j)
 
 CONFIGS = [
     ("softmax + gelu",           "softmax",   "gelu",   2, False, False, BLOCK, False, None),
     ("ssa K=2 +/- L",                "ssa",     "fs",   2, True,  True,  BLOCK, False, None),
     ("ssa K=2 +/- L g d=0.996",    "ssa",     "fs",   2, True,  True,  BLOCK, True,  0.996),
-    ("ssa K=2 +/- L g d=0.996",    "ssa",     "fs",   2, True,  True,  BLOCK, True,  gamma_ladder(N_HEADS, W_MIN, W_MAX)),
+    ("ssa K=2 +/- L g var alpha app   "ssa",     "fs",   2, True,  True,  BLOCK, True,  gamma_ladder(N_HEADS, W_MIN, W_MAX)),
 ]
 
 
@@ -153,7 +152,7 @@ os.makedirs(OUT, exist_ok=True)
 TAG              = "fineweb_100m"
 DATASET_NAME     = "HuggingFaceFW/fineweb-edu"
 DATASET_CONFIG   = "sample-10BT"
-TARGET_TOKENS    = 500_000_000                          # 100M tokens (cache)
+TARGET_TOKENS    = 500_000_000                          # 500M tokens (cache)
 
 TOKEN_PATH_TRAIN = f"{OUT}/{TAG}_train_gpt2.bin"
 TOKEN_PATH_VAL   = f"{OUT}/{TAG}_val_gpt2.bin"
@@ -285,6 +284,21 @@ def _record(module, spike_count):
     sc = spike_count.detach()
     module.spike_sum += float(sc.sum().item())
     module.spike_n += int(sc.numel())
+
+class TriangularSpike(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x, width):
+        ctx.save_for_backward(x)
+        ctx.width = width
+        return (x >= 0).float()
+
+    @staticmethod
+    def backward(ctx, grad_out):
+        (x,) = ctx.saved_tensors
+        return grad_out * torch.clamp(1.0 - x.abs() / ctx.width, min=0.0), None
+
+spike = TriangularSpike.apply
+
 
 def fs_window(K, s):
 
