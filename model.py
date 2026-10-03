@@ -89,7 +89,7 @@ MLP_RATIO  = 4
 DROPOUT    = 0.
 
 MAX_ITERS      = 10000    # Max Iterations
-EVAL_INTERVAL  = 250      # N. It
+EVAL_INTERVAL  = 250      # N. Evaluation interval (250)
 EVAL_ITERS     = 40       # batches averaged per evaluation
 MICRO_BATCH    = 16       # what goes on the GPU at once
 GRAD_ACCUM     = 4        # Effective batch = MICRO_BATCH * GRAD_ACCUM = 64
