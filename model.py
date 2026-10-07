@@ -2,15 +2,10 @@
 #  FS^2-SSA, autoregressive: BPE GPT on FineWeb
 #  Single-file Colab script. Runtime > Change runtime type > GPU
 #
-#  Byte-identical to the tiny-Shakespeare script except for the data section,
-#  the model/budget constants, gradient accumulation in the training loop and
-#  the output paths. Every class -- the FS neurons, both attentions, Block,
-#  FSGPT -- is unchanged, so the two experiments can be read against each
-#  other and a seed means the same thing in both.
-#
 #  Measures validation loss and perplexity for a causal spiking attention
 #  against a matched softmax control, against a matched softmax control. 
 #  Text samples come from generate.py.
+#
 #  ---------------------------------------------------------------------
 #  FOUR THINGS DIFFER FROM THE CLASSIFIER, AND ALL FOUR ARE FORCED
 #
