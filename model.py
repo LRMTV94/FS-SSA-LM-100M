@@ -125,7 +125,7 @@ CONFIGS = [
     ("softmax + gelu",           "softmax",   "gelu",   2, False, False, BLOCK, False, None),
     ("ssa K=2 +/- L",                "ssa",     "fs",   2, True,  True,  BLOCK, False, None),
     ("ssa K=2 +/- L g d=0.996",    "ssa",     "fs",   2, True,  True,  BLOCK, True,  0.996),
-    ("ssa K=2 +/- L g var alpha app   "ssa",     "fs",   2, True,  True,  BLOCK, True,  gamma_ladder(N_HEADS, W_MIN, W_MAX)),
+    ("ssa K=2 +/- L g var alpha app",   "ssa",     "fs",   2, True,  True,  BLOCK, True,  gamma_ladder(N_HEADS, W_MIN, W_MAX)),
 ]
 
 
