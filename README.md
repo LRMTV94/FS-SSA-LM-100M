@@ -1,396 +1,221 @@
-# FS-SSA-LM: Causal Spiking Self-Attention on FineWeb-Edu (~94M Parameters)
+# FS²-SSA: Few-Spike, Softmax-Free Spiking Self-Attention
+
+**A causal spiking language model on FineWeb-Edu (~94M parameters), with no softmax anywhere and an exact linear recurrence for inference.**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22950217.svg)](https://doi.org/10.5281/zenodo.22950217)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Model-FS--SSA--LM--100M-yellow)](https://huggingface.co/Matt-94/FS-SSA-LM-100M)
 
-This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/FS_Softmax_Free_Attention), scaling **Softmax-Free Spiking Self-Attention (FS-SSA)** from synthetic classifiers and toy benchmarks to open-domain autoregressive pretraining at the **~94M parameter scale** on **FineWeb-Edu**.
+In this architecture the continuous Softmax is discarded entirely in favour of a causally masked, decay-weighted row normalisation. Query, key and value vectors are coded by few-spike (FS) neurons at an ultra-low latency of **$K=2$ timesteps**, as signed discrete spikes, so that three of the model's matrix products turn a dense floating-point multiply-accumulate (MAC) into a sparse synaptic addition (AC).
 
-In this architecture the continuous Softmax is discarded entirely in favour of a causally masked, decay-weighted row normalisation, with a few-spikes (FS) neuron operating at an ultra-low latency of **$K=2$ timesteps**. Query, key and value vectors are quantised into signed discrete spikes, so that on three of the model's matrix products a dense floating-point multiply-accumulate (MAC)
-becomes a sparse synaptic addition (AC).
+The square in the name stands for the two FS of the design: **few-spike** coding and **softmax-free** attention. In file names and code it is written `FS2-SSA`.
 
-The developmental trajectory spans three progressive scales:
+This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/FS_Softmax_Free_Attention), scaling softmax-free spiking self-attention from synthetic classifiers and toy benchmarks to open-domain autoregressive pretraining.
+
+---
+
+## Development trajectory
 
 1. **Part 1, Ablation and Mechanics (TinyShakespeare):** a ~2.7M parameter character-level model (6 layers) evaluating stability, causal normalisation and threshold dynamics against a matched full-precision control.
 
 2. **Part 2, Synthetic Scaling Proof (TinyStories):** a ~25.1M parameter model (12 layers, GPT-2 BPE) reaching a validation loss of **1.8163 ± 0.0139** (perplexity **6.15**), matching the loss regime of dense FP32 baselines on child-level narrative generation.
 
-3. **Part 3, Real-World Open-Domain Scaling (FineWeb-Edu):** a **93,884,544** parameter model (16 layers, 9 heads, context 1024, vocabulary 50257) pretrained on ~655M tokens of real-world educational web text, benchmarked head to head against an iso-parameter, compute-matched dense Transformer.
+3. **Part 3, Real-World Open-Domain Scaling (FineWeb-Edu, v1):** a **93,884,544** parameter model (16 layers, 9 heads, context 1024, vocabulary 50257) pretrained on ~655M tokens of educational web text, benchmarked head to head against an iso-parameter, compute-matched dense Transformer. Full report in [docs/v1.md](docs/v1.md).
 
-
----
-
-## Key findings
-
-1. **Competitive open-web convergence.** On FineWeb-Edu the ~94M parameter `FS-SSA K=2 ± L` model with the per-head decay ladder and learnable channel gains converges to a validation loss of **3.6228** (**perplexity 37.44**). The compute-matched dense Transformer with exact Softmax attention and GELU reaches **3.5399** (**perplexity 34.46**). The gap is **$\Delta\text{Loss} = +0.0829$ nats**, that is **+2.98 perplexity points**, or **8.6% relative**.
-
-2. **No representational collapse.** Reaching perplexity 37.44 with no Softmax anywhere and at $K=2$ latency shows that discrete temporal spike accumulation does not collapse on an open-domain web corpus, which was the open question this scale was meant to answer.
-
-3. **Generalisation stability.** The train/validation gap stays $\le 0.04$ cross the whole 10,000-step trajectory with zero dropout, and activation monitoring shows a sustained spike firing rate of **~13.1%**.
-
-4. **Numerical stability.** No seed shows loss divergence, gradient explosion or vanishing state, confirming that a multi-layer spiking threshold network can be trained end to end on a large web corpus with surrogate gradients.
+4. **Part 4, Linear-time inference (v2, this release):** the same trained model, run as an exact recurrence with a fixed state per head, so that every new token costs the same however many came before.
 
 ---
 
-## Why the autoregressive case is different
+## Key results
 
-Three things change relative to the classifier, and all three are forced rather
-than chosen.
+| model | validation loss | perplexity |
+| :--- | :---: | :---: |
+| Dense Transformer, Softmax + GELU (reference) | 3.5399 | 34.46 |
+| **FS-SSA, $K=2$, signed, per-head decay ladder, learnable $\alpha$** | **3.6228** | **37.44** |
 
-**BatchNorm cannot be used on Q/K/V.** `BatchNorm1d` over `(B, C, T)` pools statistics over time as well as batch, so in a causal model the statistics at position *t* would include future tokens: a direct leak. RMSNorm normalisesover the channel dimension only. As a side effect it also removes the running-statistics discrepancy that dominated the classifier results, since RMSNorm keeps no buffers at all.
+1. **Competitive open-web convergence.** The gap to the dense control is **$\Delta\text{Loss} = +0.0829$ nats**, that is **+2.98 perplexity points**, or **8.6% relative**. An independent verification run under identical settings reached **3.6147 (perplexity 37.14)**; the weights on Hugging Face are that checkpoint.
 
-**The row normalisation becomes causal.** Without a Softmax the attention rows do not sum to 1 and must be divided by the accumulated weight of the attended keys. In a causal model position *t* attends to *t+1* keys, not to a constant, so the divisor is `arange(1, T+1)` in the undecayed case and the row sum of the decay matrix otherwise. Dividing by a constant would crush the beginning of
-every sequence.
+2. **No representational collapse.** Perplexity 37.44 with no Softmax anywhere and at $K=2$ latency shows that discrete temporal spike accumulation does not collapse on an open-domain web corpus.
 
-**The threshold scale is re-measured, not inherited.** `qk_scale = 0.25` was calibrated for a BatchNorm-ed input, and the spread after RMSNorm is different. The script probes the pre-activation standard deviation at initialisation and derives each scale from it with its own rule: `qk_scale = 0.75 σ` for Q/K/V (measured σ ≈ 1.000, giving 0.750) and `mlp_scale = 1.0 σ` for the MLP pre-activation (measured σ ≈ 0.271, giving 0.271). Both rules were selected by sweep in the precursor project. This matters because the resolved input window is
+3. **Generalisation and numerical stability.** The train/validation gap stays $\le 0.04$ across the whole 10,000-step trajectory with zero dropout, the sustained spike firing rate is **~13.1%**, and no run showed loss divergence, gradient explosion or vanishing state.
 
+4. **Exact linear recurrence (v2).** On the published checkpoint, with no retraining, the parallel and the recurrent forms of the attention agree to a relative difference of **6e-16** in float64, with the same prediction on every token tested.
+
+---
+
+## What is new in v2: the attention as a recurrence
+
+With a fixed decay $\gamma$ per head, the softmax-free attention is exactly a linear recurrence. The parallel form builds the $T \times T$ matrix
+
+$$o_t = \frac{\text{scale}}{Z_t} \sum_{j \le t} \gamma^{t-j} \, (q_t \cdot k_j) \, v_j$$
+
+and the recurrent form carries a state of fixed size instead:
+
+$$S_t = \gamma \, S_{t-1} + k_t^\top v_t, \qquad Z_t = \gamma \, Z_{t-1} + 1, \qquad o_t = \text{scale} \cdot \frac{q_t S_t}{Z_t}$$
+
+with $S_t$ of size $64 \times 64$ per head. The parallel form is kept for training, where a GPU computes it in one pass; the recurrent form is used for inference.
+
+| check on the published checkpoint | result |
+| :--- | :--- |
+| logits, float64, 2 x 1024 tokens | relative difference **6e-16**, same argmax on every token |
+| logits, float32, 2 x 1024 tokens | same argmax on **95.2%** of the tokens |
+| validation loss, float32, 10 batches | **3.65808** parallel, **3.65814** recurrent |
+| state of the whole model | 16 layers x 9 heads x 64 x 64, about **590 thousand values**, at any length |
+
+In float64 the two forms agree to rounding. In float32 they round differently, and a spike whose input sits within rounding distance of its threshold can fire in one form and not in the other. The change then travels along the sequence through the attention: it moves the top prediction on about one token in twenty, but not the loss, which is also a useful property for hardware that rounds differently from a GPU.
+
+On a GPU, 256 new tokens take about 17 s in both forms: at that length the parallel form costs little. What the recurrent form changes is that every new token costs the same up to the full context, with a state that does not grow.
+
+Every check is run by `recurrent_check.py` on the published checkpoint (step 9750, best validation loss 3.6147).
+
+```python
+model.set_recurrent(True)            # the whole sequence through the recurrence
+logits, loss = model(x, y)
+model.set_recurrent(False)           # back to the parallel form, for training
+
+out = model.generate_recurrent(idx, 256, temperature=0.8, top_k=200)   # one step per token
 ```
-window = [0, s·(2 − 2^-(K-1)))     →  2s  as K → ∞
-```
 
-with a hard ceiling at `2s`: raising K refines the quantisation step but can never widen the range, so a badly chosen `s` cannot be repaired with more spike levels. At `s = 0.750` and K=2, 13% of channels land outside the window and clip.
-
-
-### A prediction about the sign
-
-In every classifier ablation the signed ON/OFF pair was measurable only at K=1 and cost roughly twice the spikes. Before running this experiment there was a mechanistic reason to expect otherwise here:
-
-> With non-negative Q and K every causal logit is ≥ 0, so a token can be weighted less but never **suppressed**. The sign is what restores suppression.
-
-**The prediction is supported at the current budget.** Adding the sign improves validation loss by **0.1809 nats**, moving perplexity from **70.82 to 59.11**, a drop of **11.71 points**.
-
-In classification, distinguishing global spatial topology rarely requires destructive cancellation. In autoregressive language modelling, syntactic disambiguation and negative constraints demand active inhibition: an incoming query must be able to cancel competing hypotheses. Without negative spikes all inner products are strictly additive ($QK^T \ge 0$), turning attention into a purely cumulative blur. Signed bipolar pairs decouple excitation from  suppression without reintroducing dense floating-point MACs.
+**Known limit.** The cost per token is constant up to the trained context of 1024 tokens: the position embeddings are learned only up to there. Longer streams need them replaced, and so a new training run.
 
 ---
 
-## Beyond the sign: $\gamma$ and $\alpha$
+## How it works
 
-While the bipolar representation restores the ability to suppress tokens, two
-further mechanisms were needed to turn sparse discrete events into a scalable
-language model.
+**Few-spike neurons.** Each FS neuron (Stöckl & Maass, 2021) encodes a value in $K=2$ timesteps: at each step it fires if its membrane potential exceeds a threshold, subtracts a reset and adds a readout to its output. Thresholds, resets and readouts are learnable per channel.
 
-### 1. Temporal decay ($\gamma$): from unbounded accumulation to content selection
+**Signed spikes restore suppression.** With non-negative Q and K every causal logit is $\ge 0$, so a token can be weighted less but never suppressed. Signed ON/OFF pairs on Q and K restore inhibition without reintroducing dense MACs: **$-11.71$ perplexity** ($70.82 \to 59.11$).
 
-With causal row normalisation and no Softmax, every past key contributes with weight independent of its distance. Over a `T = 1024-token` context this makes early context act as persistent background that competes with local syntax.
+**RMSNorm instead of BatchNorm.** `BatchNorm1d` over `(B, C, T)` pools statistics over time, so in a causal model position $t$ would see future tokens. RMSNorm normalises over channels only.
 
-* **Static causal decay ($\gamma = 0.996$).** Enforcing a recency prior through $\gamma^{i-j}$ yields **$-0.1572$ nats** (**$-8.61$ perplexity**, reaching **50.50**). It restores an effective memory horizon of $1/(1-\gamma) \approx 250$ tokens.
+**Causal row normalisation.** Without a Softmax the attention rows do not sum to 1, so each row is divided by the accumulated weight of the keys it attends to: $t+1$ without decay, the row sum of the decay matrix with it.
 
-* **Per-head decay ladder ($\gamma_{\text{var}}$).** Replacing the single scalar with **one fixed $\gamma$ per head**, geometrically spaced so that the effective windows $1/(1-\gamma)$ run from 8 to 1024 tokens, gives the final **37.44 perplexity**. A single decay rate forces every head to the same memory horizon; a ladder lets some heads specialise on local syntax while others carry sentence-level and paragraph-level context. This costs **zero added parameters**: the decay matrix is a constant buffer.
+**Per-head decay ladder.** One fixed $\gamma$ per head, geometrically spaced so that the effective windows $1/(1-\gamma)$ run from 8 to 1024 tokens. Some heads specialise on local syntax, others carry sentence-level and paragraph-level context, at **zero added parameters**.
+
+| head | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---|---|---|---|---|---|---|---|---|
+| $\gamma$ | 0.875 | 0.93184 | 0.96284 | 0.97974 | 0.98895 | 0.99398 | 0.99672 | 0.99821 | 0.99902 |
+| window | 8 | 15 | 27 | 49 | 91 | 166 | 304 | 558 | 1024 |
+
+**Channel gains.** A learnable per-channel gain $\alpha_c$ on the signed pairs, initialised in $(0.1, 1)$, restores heterogeneity between channels: **$-4.64$ perplexity** ($50.50 \to 45.86$).
+
+**Where spikes replace multiplications.** Three matrix products have a spike code as an operand and become additions: $q k^\top$ (spike x spike), the product of the attention weights with $v$ (real x spike) and the second MLP layer (real x spike). The four linear layers that read the real-valued residual stream (QKV, output projection, first MLP layer, output head) are still dense MACs: they are the target of the next versions.
+
+---
+
+## Ablation (FineWeb-Edu, ~94M, ~655M tokens)
+
+| model | name in `results/history` | best iter | val loss | perplexity | Δ loss | Δ PPL |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| **Dense, Softmax + GELU** | `softmax + gelu` | 7500 | 3.5399 | 34.46 | *ref* | *ref* |
+| **FS-SSA, decay ladder + learnable α** | `ssa K=2 +/- L + alpha_app + gamma_var` | 9750 | **3.6228** | **37.44** | **+0.0829** | **+2.98** |
+| FS-SSA, static γ = 0.996 + learnable α | `ssa K=2 +/- L + g=0.996 + alpha_app` | 10000 | 3.8255 | 45.86 | +0.2856 | +11.39 |
+| FS-SSA, static γ = 0.996 | `ssa K=2 +/- L + d g=0.996` | 8000 | 3.9221 | 50.50 | +0.3822 | +16.04 |
+| FS-SSA, $K=2$ signed, learnable | `ssa K=2 +/- L` | 7000 | 4.0793 | 59.11 | +0.5394 | +24.64 |
+| FS-SSA, $K=2$ base | `ssa K=2` | 7500 | 4.2602 | 70.82 | +0.7203 | +36.36 |
+
+Each component brings a separate gain: the sign ($-11.71$ PPL), the static decay ($-8.61$), the channel gains ($-4.64$) and the per-head ladder ($-8.42$, down to **37.44**). All runs use seed 1; the seed spread measured at iteration 2000 is comparable to the gaps between the middle rungs, so their ordering still needs matched multi-seed runs.
 
 <p align="center">
-
-  | head | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
-  |---|---|---|---|---|---|---|---|---|---|
-  | $\gamma$ | 0.875 | 0.93184 | 0.96284 | 0.97974 | 0.98895 | 0.99398 | 0.99672 | 0.99821 | 0.99902 |
-  | window | 8 | 15 | 27 | 49 | 91 | 166 | 304 | 558 | 1024 |
-  
+  <img src="figures/summary_grid.png" alt="Training and validation curves" width="95%">
 </p>
 
-
-### 2. Channel-wise scaling ($\alpha$): restoring synaptic heterogeneity
-
-
-The transition from uncalibrated discrete spikes to competitive language modeling requires solving the **quantization homogeneity trap**. In standard SNNs, forcing every neuron to emit identical unit-amplitude spikes ($\pm 1$) severely flattens the representational geometry.
-
-* Incorporating bounded per-channel gain parameters $\alpha_c in (0, 1)$ accounts for a direct reduction of **$-0.0966$ in loss** (**$-4.64$ PPL**, moving from **50.50 to 45.86**).
-
-* Mechanistically, $\alpha$ reintroduces **biological neural heterogeneity**:
-
-  1. **Feature Highways ($\alpha \to 1$):** Critical syntactic channels pass spikes at full energy to preserve long-range gradient propagation across 16 layers.
-  
-  2. **Selective Dampening ($\alpha \approx 0.3 - 0.7$):** Modulates subtle semantic context without overpowering the residual stream.
-  
-  3. **Implicit Self-Pruning ($\alpha \to 0$):** Uninformative or noisy spiking channels are silenced, reducing overall quantization error across depth.
-
-Together, the synergy of **signed suppression ($\pm$)**, **temporal memory modulation ($\gamma$)**, and **channel heterogeneity ($\alpha$)** forms the complete structural ladder that bridges discrete spiking mechanics with modern transformer-grade language generation.
+The convergence analysis, the reason the dense control stops at step 7,500 and the multi-seed checks are in [docs/v1.md](docs/v1.md).
 
 ---
 
-## Benchmark & Ablation Results (FineWeb-Edu ~94M)
+## Qualitative probing
 
-The table below summarizes the architectural ablation ladder on **FineWeb-Edu** (~655M tokens seen across 10,000 steps), highlighting how each progressive component contributes to closing the performance gap with the continuous full-precision baseline.
+| probe | test case | observed behaviour | status |
+| :--- | :--- | :--- | :---: |
+| Long-range agreement | *"The teacher [...] students [...]"* | resolves to singular **`was`** | **PASS** |
+| Long-range agreement | *"The samples [...] lake bed [...]"* | resolves to plural **`were`** | **PASS** |
+| In-context binding | *Alvarez / Mehta* | retrieves **`volcanoes`** | **PASS** |
+| Domain fluency | *photosynthesis* | multi-clause botanical prose | **PASS** |
+| Decoding stability | greedy rollout | periodic attractor loops | **WARN** |
+| Factual induction | capital cities, colour cycles | topical drift | **FAIL** |
+| Symbolic arithmetic | *2 + 2*, word problems | hallucinated numbers | **FAIL** |
 
-| Category | Exact JSON Name | Seed | Best Iter | Best Val Loss | Best PPL | Δ Loss | Δ PPL (vs Ref) |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Baseline (Softmax + GeLU) (*)** | `softmax + gelu` | 1 | 7500 | 3.5399 | 34.46 | *REF* | *REF (Base)* |
-| **FS-SSA (Dynamic γ + Learnable α)** | `ssa K=2 +/- L + alpha_app + gamma_var` | 1 | 9750 | **3.6228** | **37.44** | **+0.0829** | **+2.98** |
-| **FS-SSA (Static g=0.996 + Learnable α)** | `ssa K=2 +/- L + g=0.996 + alpha_app` | 1 | 10000 | 3.8255 | 45.86 | +0.2856 | +11.39 |
-| **FS-SSA (Static g=0.996)** | `ssa K=2 +/- L + d g=0.996` | 1 | 8000 | 3.9221 | 50.50 | +0.3822 | +16.04 |
-| **FS-SSA (K=2 Signed Leaky)** | `ssa K=2 +/- L` | 1 | 7000 | 4.0793 | 59.11 | +0.5394 | +24.64 |
-| **FS-SSA (K=2 Base)** | `ssa K=2` | 1 | 7500 | 4.2602 | 70.82 | +0.7203 | +36.36 |
-
-> **(*) Reference Control Baseline:** Dense Transformer with quadratic Softmax attention and GeLU non-linearities (`Best Val = 3.5399`, `Best PPL = 34.46`). The results are visible in `/results/history`
-
----
-
-### Architectural Takeaways
-
-1. **Ablation Monotonicity:** Each architectural innovation provides a measurable, non-overlapping performance gain:
-
-   * Adding **bipolar signed spikes & L** (`+/- L`): $-11.71$ PPL ($70.82 \to 59.11$)
-   
-   * Adding **causal temporal decay** (`g=0.996`): $-8.61$ PPL ($59.11 \to 50.50$)
-   
-   * Adding **channel-wise learnable scaling** (`alpha_app`): $-4.64$ PPL ($50.50 \to 45.86$)
-   
-   * Introducing **data-dependent dynamic selection** (`gamma_var`): $-8.42$ PPL ($45.86 \to \mathbf{37.44}$)
-   
-2. **The Pareto Efficiency Frontier:** The final model achieves **PPL 37.44** within a delta of just **$+0.2645$ loss** from the dense Softmax Transformer, while replacing continuous floating-point MACs with sparse discrete event accumulations at an ultra-low latency of $K=2$.
+Greedy decoding needs a repetition penalty or top-$p$ sampling. Examples and diagnoses are in [docs/v1.md](docs/v1.md).
 
 ---
 
-### Convergence & Evaluation Curves
+## Quick start
 
-The evaluation curves below illustrate the optimization trajectory across the 10,000-step pretraining run on **FineWeb-Edu**. Notice the smooth, monotonic descent and the absence of gradient instabilities across all spiking configurations:
-
-<p align="center">
-  <img src="figures/summary_grid.png" alt="Training & Validation Curves" width="95%">
-</p>
-
-* **Left Panel:** Validation Perplexity across training iterations (log scale, zoomed past step 500), showing the progressive gap reduction between the spiking variants and the dense baseline.
-* **Right Panel:** Cross-Entropy Validation Loss, demonstrating steady non-divergent convergence and near-zero generalization gap (Train vs. Val $\Delta \le 0.04$).
-
-
-### Incremental Rate Analysis & Justification of the Dense Baseline Halt
-
-A common critique in comparative LLM benchmarking is whether unequal training horizons (7,500 steps for the baseline vs. 10,000 steps for the last FS-SSA model) introduce an unfair token advantage. 
-
-An empirical examination of the **first differences and incremental rates of progress** ($\Delta \text{Loss}$ and $\Delta \text{PPL}$ across training windows) demonstrates that **halting the dense Transformer at iteration 7,500 was fully justified**, as the dense model had already entered complete asymptotic stagnation, as can be seen in the tbale:
-
-| Training Window | Dense $\Delta$ Loss | Dense $\Delta$ PPL | FS-SSA $\Delta$ Loss | FS-SSA $\Delta$ PPL | Relative Optimization Velocity | Convergence State |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Steps 0 $\to$ 2,500** | $-7.0099$ | $-58108.20$ | $-6.7756$ | $-54941.32$ | $\approx 1.0\times$ | Unigram/Syntax acquisition |
-| **Steps 2,500 $\to$ 5,000** | **$-0.2909$** | **$-13.25$** | **$-0.2897$** | **$-15.79$** | **$\approx 1.0\times$ (Identical)** | Mid-training feature learning |
-| **Steps 5,000 $\to$ 6,250** | $-0.1293$ | $-4.76$ | $-0.0841$ | $-3.79$ | $\approx 0.65\times$ | Dense pre-saturation descent |
-| **Steps 6,250 $\to$ 7,500** | **$-0.0010$** | **$-0.04$** | **$-0.0691$** | **$-2.89$** | **$\mathbf{69.1\times}$ (FS-SSA)** | **Dense Saturation vs. SNN Momentum** |
-| **Steps 7,500 $\to$ 9,750** | *Halted* | *Halted* | **$-0.0739$** | **$-2.87$** | *N/A (Sustained)* | **FS-SSA reaches 37.44 PPL** |
-
----
-
-### Why Halting the Dense Baseline at 7,500 Steps is Methodologically Justified
-
-1. **The Dense Baseline Flatline ($\Delta \text{Loss} = -0.0010$):**
-   Between steps 6,250 and 7,500 (spanning 1,250 steps and ~82M tokens), the dense Transformer baseline effectively stalled. Its validation loss oscillated non-monotonically between $3.54$ and $3.56$ ($3.5409 \to 3.5594 \to 3.5595 \to 3.5448 \to 3.5524 \to 3.5399$), yielding an imperceptible net improvement of just **$-0.0010$ nats** ($-0.04$ PPL). Allocating further single-GPU compute budget to extend the dense baseline to 10,000 steps would have burned hours of A100 time on an empirical flatline.
-
-2. **Sustained SNN Plasticity:**
-   In that exact same 6,250–7,500 window, the  last `FS-SSA` spiking architecture (with Dynamic γ + Learnable α), had an optimization velocity **~69.1 times faster** than the dense control. Unlike the dense model, the spiking model showed no evidence of capacity exhaustion.
-
-3. **Asymptotic Convergence vs. Premature SNN Saturation:**
-   The central open question for discrete, Softmax-free spiking models has always been whether temporal quantization causes an early representational barrier. Allocating the full 10,000-step budget to `FS-SSA` was mathematically required to test this boundary: the model maintained a steady descent past step 7,500, gaining an additional **$-0.0739$ nats** to consolidate at **37.44 PPL** (Loss 3.6228).
-
-So, halting the dense control was not an arbitrary truncation, but an optimal allocation of compute dictated by empirical derivative saturation. However, an unconfounded iso-token comparison can be performed using the data in the folder `results/history`.
-
----
-
-### Multi-Seed Reproducibility & Stability
-
-Due to compute budget constraints on single-GPU hardware (NVIDIA A100-SXM4-80GB), the complete 10,000-iteration scaling ablation was executed on **Seed 1**. 
-
-However, multi-seed evaluations across independent initializations demonstrate that the stochastic variance of the spiking architecture remains tight ($\sigma = 0.025$ nats, ~1.93 PPL), **confirming** that the convergence dynamics are strictly reproducible and do not suffer from random initialization collapse.
-
-<p align="center">
-
-| Model Variant | Seed | Best Iter | Best Val Loss | Best PPL |
-| :--- | :---: | :---: | :---: | :---: |
-| **FS-SSA (Dynamic γ + Learnable α)** | 0 | 2000 | 4.28 | 72.28 |
-| **FS-SSA (Dynamic γ + Learnable α)** | 2 | 2000 | 4.26 | 71.26 |
-| **FS-SSA (Dynamic γ + Learnable α)** | 3 | 2000 | 4.31 | 74.99 |
-</p>
-
-The results are visible in `/results/stability_seed`
-
-## Qualitative Probing: Capabilities & Failure Modes
-
-To evaluate whether the **PPL 37.44** milestone on FineWeb-Edu reflects genuine syntactic competence or superficial n-gram memorization, the 100M parameter `FS-SSA K=2 ± L` model was subjected to targeted mechanistic behavioral probes across five domains:
-
----
-
-### 1. Emergent Strengths
-
-#### A. Hierarchical Grammar & Long-Range Agreement
-The model demonstrates an ability to track structural dependencies across long parenthetical distractors, solving the classic psycholinguistic agreement benchmark (Linzen et al., 2016):
-
-> **Prompt:** `"The teacher, along with the students who had arrived early that morning from the neighbouring village,"`
-> **Model:** `was very impressed by the fact that the students were very much impressed...`
-
-* **Mechanistic Significance:** A naive n-gram model or bag-of-words heuristic falls into the "attractor trap" of the immediately preceding plural noun (*students*) and incorrectly generates *"were"*. The FS-SSA model ignores 18 intervening tokens, tracks the primary singular subject (*The teacher*), and correctly selects the singular verb **`was`**. The same behavior is observed for plural subjects:  
-  * *"The samples that the researchers collected [...] **were** collected..."*
-
-#### B. Associative Binding & In-Context Retrieval (Induction Heads)
-In-context retrieval probes confirm that causal linear recurrence can bind and retrieve arbitrary entity-attribute pairs:
-
-> **Prompt:** `"Dr. Alvarez studied volcanoes. Dr. Mehta studied glaciers. Dr. Alvarez studied"`
-> **Model:** `volcanoes and volcanoes. Dr. Alvarez studied volcanoes...`
-
-* **Mechanistic Significance:** The model successfully binds *Dr. Alvarez* $\to$ *volcanoes*, ignoring the intervening distractor (*Dr. Mehta $\to$ glaciers*). While it subsequently enters a repetition loop, the initial in-context token resolution is exact.
-
-#### C. Semantic Clustering & Syntactic Fluency (Prose)
-Under temperature sampling ($T = 0.8$), the model exhibits natural sentence structures and domain-coherent vocabulary:
-
-> **Prompt:** `"The process of photosynthesis"`
-> **Model:** `takes far beyond the primary production stage, but this time in the process we will find that the process is far to the most stable. [...] When the plant is first flowering, we will begin to see that it will begin to increase in the numbers of flowers [...] The plant will then be able to compete for the nutrition it needs, and in the end there will be a loss`
-
-* **Mechanistic Significance:** The output remains strictly within the botanical/biological domain (*plant, flowering, flowers, nutrition, bloom, compete, primary production*), generating grammatically complex, compound sentences.
-
----
-
-### 2. Known Limitations & Mechanistic Diagnoses
-
-#### A. Repetition Collapse (Attractor Loops in Linear Attention)
-Under unpenalized greedy search, the model frequently falls into periodic degenerate loops:
-* *"and you look at the human brain and you look at the human brain..."*
-* *"The 'c' number is 'c' number. The 'c' number is a number whose 'c' number..."*
-* *"3. Solid \n 4. Solid \n 5. Solid..."*
-
-* **Root Cause:** In Softmax-Free linear attention ($\sum K_j^T V_j$), generating token $w_t$ immediately writes its key-value outer product into the recurrent memory buffer. Without the global competitive normalization of Softmax to suppress self-reinforcing projections, greedy decoding can trigger a positive feedback loop, trapping the hidden state in a localized periodic attractor.
-
-* **Inference Remedy:** In practice, this is mitigated at inference time using standard decoding constraints:
-  * Applying a modest **repetition penalty** ($\approx 1.15 - 1.20$);
-  * Using **Nucleus (Top-p) Sampling** ($p = 0.90, T = 0.75$) instead of pure greedy argmax.
-
-#### B. In-Context Pattern Generalization (Static Decay Bottleneck)
-While binary associations succeed, multi-turn sequence continuation sometimes retrieves broad semantic categories rather than exact relational mappings:
-* *"The capital of France is Paris [...] The capital of Spain is" [..] "the capital of the United States."*
-* *"apple red, banana yellow, grape purple [...] grape" [..] "yellow, and grapefruit."*
-
-* **Root Cause:** Reflects the fundamental boundary of models relying on static temporal decay matrices ($g = 0.996$). Without fully dynamic, **data-dependent decay gates**, the associative memory fades at a constant metric rate, making exact multi-hop induction heads harder to stabilize.
-
-#### C. Formal Structure & Symbolic Arithmetic
-As expected for a ~100M parameter base model pre-trained on open-domain web text without instruction tuning or math-specific curricula:
-* Arithmetic operations fail systematically (*"2 + 2 = 3 + 2..."*).
-* Recursive code blocks degrade into markdown table artifacts (*"def factorial(n): ... | ||n||n||"*).
-
----
-
-### Summary of Behavioral Diagnostics
-
-| Probe Domain | Test Case | Observed Behavior | Status | Mechanistic Insight |
-| :--- | :--- | :--- | :---: | :--- |
-| **Long-Range Agreement** | *"The teacher [...] students [...]"* | Resolves to singular **`was`** | **PASS** | Hierarchical syntactic parsing maintained across distractors. |
-| **Long-Range Agreement** | *"The samples [...] lake bed [...]"* | Resolves to plural **`were`** | **PASS** | Distal subject-verb number agreement intact. |
-| **In-Context Binding** | *Alvarez / Mehta association* | Correctly outputs **`volcanoes`** | **PASS** | Working memory successfully routes entity-property bindings. |
-| **Domain Fluency** | *Photosynthesis completion* | Rich, multi-clause botanical text | **PASS** | Contextual semantics and syntax generalize smoothly. |
-| **Decoding Stability** | *Greedy sequence rollout* | Repetitive attractor loops | **WARN** | Linear state requires repetition penalty or Top-$p$ sampling. |
-| **Factual Induction** | *Capital cities / Color cycles* | Topical categorical drift | **FAIL** | Lacks dynamic data-dependent gating for exact multi-hop recall. |
-| **Symbolic Arithmetic** | *2 + 2 / Egg carton word problems* | Hallucinated numeric sequences | **FAIL** | Model capacity (~100M) insufficient for emergent arithmetic. |
-
----
-
-## Usage
-
-Flat layout, no packages, no subdirectories. Training needs a GPU; the evaluation scripts run as Colab cells in the same session that defines the model, because they need the class and not just the weights.
+Training needs a GPU. `diagnostic.py` runs as a Colab cell after `model.py`, in the same session. `generate.py` and `recurrent_check.py` are self-contained: they carry the classes of the trained model and take the weights from Hugging Face (`SOURCE = "hf"`, the default) or from Drive (`"drive"`).
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install torch matplotlib numpy
+pip install torch matplotlib numpy tiktoken datasets huggingface_hub
 
-python model.py             # trains, writes .json 
-python diagnostic.py        # diagnostic and graphics 
-python generate.py          # generation test
+python model.py             # tokenises FineWeb-Edu, trains, writes histories and checkpoints
+python diagnostic.py        # diagnostics and figures
+python generate.py          # generation test, self-contained
+python recurrent_check.py   # parallel against recurrent form, self-contained (v2)
 ```
+
+Pretrained weights: [huggingface.co/Matt-94/FS-SSA-LM-100M](https://huggingface.co/Matt-94/FS-SSA-LM-100M), file `model.pt` (about 1.8 GB), the published checkpoint at perplexity 37.14. `generate.py` and `recurrent_check.py` download it themselves with `SOURCE = "hf"`.
 
 ---
 
-## Pretrained Model Weights & Verification Note
+## Roadmap
 
-### Checkpoint Verification & Reproducibility
+**Done in v2:** the genuinely linear implementation, the recurrence $S_t = \gamma S_{t-1} + K_t^\top V_t$, verified exact on the trained model.
 
-To rigorously assess the empirical validity of the sub-38 result and rule out random stochastic artifacts, an independent verification training run was executed under identical hyperparameter conditions. 
+**Next:**
 
-* **Primary Reported Result (Ablation Table):** Validation Loss **3.6228** | **Perplexity 37.44**
-* **Independent Verification Run:** Validation Loss **3.6147** | **Perplexity 37.14** ($\Delta = -0.30$ PPL / $-0.0081$ nats)
-
-The microscopic variance ($\sigma \approx 0.008$ nats) falls strictly within standard CUDA/cuDNN non-deterministic reduction boundaries and validation sampling variance, demonstrating that the convergence dynamics are robust, stable, and completely repeatable.
-
-In accordance with conservative scientific reporting standards, the main benchmark table maintains the **37.44 PPL** baseline figure. However, the official pretrained weights hosted on the Hugging Face Hub correspond to this **verified, best-performing checkpoint reaching PPL 37.14**, effectively narrowing the final gap from the compute-matched dense Softmax Transformer to just **+2.68 perplexity points** (+0.0748 nats, or **7.8% relative**).
-
----
-
-### Downloading Weights via Hugging Face Hub
-
-The official pretrained checkpoint is publicly accessible on the Hugging Face Hub:
-
-* **Model Hub:** [Matt-94/FS-SSA-LM-100M](https://huggingface.co/Matt-94/FS-SSA-LM-100M)
-* **Checkpoint File:** `model.pt` (~1.7 GB)
-
-You can programmatically fetch and load the weights in Python using `huggingface_hub`:
-
-```
-import torch
-from huggingface_hub import hf_hub_download
-
-# -----------------------------------------------
-# Fetch the exact checkpoint from Hugging Face
-# -----------------------------------------------
-
-weights_path = hf_hub_download(
-    repo_id="Matt-94/FS-SSA-LM-100M",
-    filename="model.pt",
-)
-
-# Here you need to define the FS-SSA-GPT Model (see model.py)
-
-# -------------------------------------------------------
-#              Load state dict into model
-# -------------------------------------------------------
-
-checkpoint = torch.load(weights_path, map_location="cpu")
-model.load_state_dict(checkpoint["model_state_dict"])
-model.eval()
-
-print("FS-SSA-LM-94M weights loaded successfully!")
-```
-
----
-
-## Future work
-
-1. **Extended iteration budgets.** Training to 50,000 or 100,000 steps to find the asymptotic limit, and to test whether the descent still visible at 10k steps plateaus near the control loss or short of it. At 10k steps the spiking arm was still improving faster than the dense one, which is the single most important open question in this repository.
-
-2. **Matched multi-seed runs at full budget.** The ablation ladder is currently a single seed. The seed spread at iteration 2000 is comparable to the gap being measured, so the ordering of the middle rungs is not yet established.
-
-3. **Data-dependent decay.** Replacing the fixed per-head ladder with a gate $\gamma_t = \sigma(W_\gamma x_t)$, breaking the Linear Time-Invariant ceiling in the RetNet / Mamba / RWKV-v6 sense. This is the mechanism the chained-induction failures point at, and it is **not** what the current `gamma_var` runs contain.
-
-4. **A genuinely linear implementation.** Rewriting the forward as the recurrence $S_t = \gamma S_{t-1} + K_t^\top V_t$, which the fixed per-head decay already makes valid, so that the computation can become  $O(N)$ and long contexts ($T \ge 4096$) become affordable.
-
-5. **$K = 3$.** The signed code reaches 0.977 correlation with the true logit at K=3 against 0.929 at K=2, with `qk_scale` and `mlp_scale` needing a retune. Not run: hours of GPU time.
-
+1. **Spikes into the remaining linear layers.** FS coding on the inputs of QKV, the first MLP layer, the output projection and the head, turning them from MACs into additions.
+2. **Extended iteration budgets**, 50,000 to 100,000 steps, to find where the descent still visible at 10k steps settles.
+3. **Matched multi-seed runs** at full budget for the whole ablation ladder.
+4. **Data-dependent decay**, $\gamma_t = \sigma(W_\gamma x_t)$, for exact multi-hop induction.
+5. **$K = 3$**, where the signed code reaches 0.977 correlation with the true logit against 0.929 at $K=2$.
 6. **WikiText-2** evaluation of the 25M architecture, for comparability with published numbers.
+
+---
+
+## Repository
+
+| path | content |
+| :--- | :--- |
+| `model.py` | model, training sweep, sanity checks |
+| `diagnostic.py` | diagnostics and figures |
+| `generate.py` | generation test; self-contained, published weights or Drive checkpoints |
+| `recurrent_check.py` | parallel against recurrent form, the v2 checks; self-contained, like `generate.py` |
+| `results/history/` | training histories behind every number in the tables |
+| `results/stability_seed/` | multi-seed stability runs |
+| `figures/` | convergence curves |
+| `docs/v1.md` | v1 in full: analysis, baseline halt, multi-seed, probes |
+| `CHANGELOG.md` | what changed in each version |
+
+Checkpoints are not in the repository: the pretrained weights are on [Hugging Face](https://huggingface.co/Matt-94/FS-SSA-LM-100M).
 
 ---
 
 ## References
 
 * Stöckl & Maass, *Optimized spiking neurons can classify images with high accuracy through temporal coding with two spikes*, Nature Machine Intelligence 3, 230–238 (2021).
-
 * Zhou et al., *Spikformer: When Spiking Neural Network Meets Transformer*, ICLR 2023.
-
-* Sun et al., *Retentive Network: A Successor to Transformer for Large Language Models*, 2023. The per-head decay ladder used here is the multi-scale decay of RetNet, without its recurrent formulation.
-
+* Yao et al., *Spike-driven Transformer*, NeurIPS 2023.
+* Sun et al., *Retentive Network: A Successor to Transformer for Large Language Models*, 2023. The per-head decay ladder is the multi-scale decay of RetNet; v2 also uses its recurrent formulation.
 * Linzen, Dupoux & Goldberg, *Assessing the Ability of LSTMs to Learn Syntax-Sensitive Dependencies*, TACL 2016.
-
 * Karpathy, [nanoGPT](https://github.com/karpathy/nanoGPT). The baseline architecture and hyperparameters this follows.
-
 * Vaswani et al., *Attention Is All You Need*, NeurIPS 2017.
-
-- Lo Russo M.V., https://doi.org/10.5281/zenodo.22048497, Few-Spikes Transformer with Spiking Self-Attention
-
-- Lo Russo M.V., https://doi.org/10.5281/zenodo.22702448, FS-SSA-GPT
+* Lo Russo M.V., *Few-Spikes Transformer with Spiking Self-Attention*, https://doi.org/10.5281/zenodo.22048497
+* Lo Russo M.V., *FS-SSA-GPT*, https://doi.org/10.5281/zenodo.22702448
 
 ---
 
-## Citation and Acknowledgements
-
-If you use this codebase or the FS-SSA architecture in your research, please cite:
+## Citation
 
 ```bibtex
-@software{FS-SSA-LM — Causal Spiking Self-Attention on FineWeb,
-  author    = {Lo Russo Matteo Vito},
-  title     = {FS-SSA-LM: Causal Spiking Self-Attention on FineWeb-Edu},
+@software{lorusso_fs2ssa_2026,
+  author    = {Lo Russo, Matteo Vito},
+  title     = {FS$^2$-SSA: Few-Spike, Softmax-Free Spiking Self-Attention},
   year      = {2026},
   publisher = {Zenodo},
-  doi       = {10.5281/zenodo.22950218},
+  doi       = {10.5281/zenodo.22950217},
   url       = {https://doi.org/10.5281/zenodo.22950217}
+}
 ```
 
 Thanks for your.... Attention! 😄
-
----

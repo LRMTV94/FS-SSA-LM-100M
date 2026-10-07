@@ -1,34 +1,50 @@
-# =======================================================================
-#                              GENERATION  TEST
-# =======================================================================
+# ==============================================================================
+#                               RECURRENT CHECK
+# ==============================================================================
 #
-#  Same prompts, same seed, both arms held in memory at once so the two
-#  continuations of a prompt print one under the other. That is the whole
-#  point: read them in a column, not all of one model and then all of the
-#  other. 
+#  Self-contained: it defines the model as it was trained (SignedFSNeuron
+#  keeps its gain as alpha1, the name in the checkpoints), the helpers
+#  the classes need and the validation data, so it depends on nothing in
+#  the session and runs in a fresh runtime too. Validation tokens come
+#  from the cache model.py writes on Drive (searched under DATA); without
+#  it, from the first documents of FineWeb-Edu.
 #
-#  NOTE: If it runs out of memory, drop one entry from CONFIGS and run
-#  it twice.
+#  Weights from Hugging Face (SOURCE = "hf", the published checkpoint) or
+#  from Drive (SOURCE = "drive", CONFIG's file in OUT). The checkpoint is
+#  loaded twice: once as it was trained (quadratic attention) and once
+#  with every attention block rebuilt in recurrent form. Same weights,
+#  nothing retrained. Per head, with decay gamma, the quadratic forward
+#  computes
 #
-#  Self-contained: it defines the model as it was trained, the tokenizer
-#  and the sampler, so it depends on nothing in the session.
+#      out_t = scale / Z_t * sum_{j<=t} gamma^(t-j) (q_t . k_j) v_j
 #
-#  Weights from Hugging Face (SOURCE = "hf": the published spiking model,
-#  the only one there) or from Drive (SOURCE = "drive": every entry of
-#  CONFIGS, from OUT; add the dense control there to compare the arms).
-# =======================================================================
+#  and the recurrent one carries a state of fixed size instead:
+#
+#      S_t = gamma * S_{t-1} + k_t^T v_t        (d_head x d_head per head)
+#      Z_t = gamma * Z_{t-1} + 1                (= decay_sum)
+#      out_t = scale * (q_t S_t) / Z_t
+#
+#  Four tests: same logits, same validation loss, same generated text
+#  at the same seed with the generation time of both, and the logits
+#  again in float64.
+#
+# ==============================================================================
 
+import copy
 import glob
 import math
 import os
+import time
+import numpy as np
 import tiktoken
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
-SOURCE = "hf"                                    # "hf": the published weights, "drive": the checkpoints of CONFIGS in OUT
+SOURCE = "drive"                                 # "hf": the published weights, "drive": the checkpoints of CONFIGS in OUT
 HF_REPO = "Matt-94/FS-SSA-LM-100M"               # Hugging Face repository of the published model.pt
+DATA = "/content/drive/MyDrive/fsssa"            # Drive folder of the results, for SOURCE = "drive"
 OUT = "/content/drive/MyDrive/fsssa"             # Drive folder of the checkpoints, for SOURCE = "drive"
 SEED = 1234                                      # sampling seed, the same for every arm and prompt
 
@@ -50,29 +66,69 @@ QK_SIGMA_MULT   = 0.75                # qk_scale  = this x measured std of the R
 MLP_SIGMA_MULT  = 1.0                 # mlp_scale = this x measured std of the MLP pre-activation
 QK_SCALE  = QK_SIGMA_MULT * 1.000     # x the std model.py measures at init; they only set the
 MLP_SCALE = MLP_SIGMA_MULT * 0.271    # initial thresholds, which the checkpoint overwrites
+MICRO_BATCH = 16                      # sequences per validation batch, as in model.py
 
 W_MIN = 8.0                           # shortest decay window 1/(1 - gamma), first head
 W_MAX = BLOCK                         # longest decay window, last head: the whole context
 
+GEN_TOKENS      = 300
+GEN_TEMPERATURE = 0.8
+GEN_TOP_K       = 200
+
+
+GAMMA_MIN, GAMMA_MAX = 0.50, 0.9999  # Gamma values (for gamma ladder - checkpoint overwrites)
+N_VAL = 10                           # validation batches for the loss comparison
+NEW_TOKENS = 256                     # generated tokens for the timing test
+
 
 # =====================================================================
-#                       HELPERS AND TOKENIZER
+#                   HELPERS AND VALIDATION DATA
 # =====================================================================
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 tokenizer = tiktoken.get_encoding("gpt2")
-
 VOCAB = tokenizer.n_vocab
-encode = tokenizer.encode_ordinary
 decode = lambda ids: tokenizer.decode([int(i) for i in ids])
-_record = lambda module, spike_count: None
+_record = lambda module, spike_count: None          # spike counting is not needed here
 
-if SOURCE == "drive":
-    try:
-        from google.colab import drive
-        drive.mount("/content/drive")
-    except Exception as e:
-        print(f"Drive not mounted ({e})")
+try:
+    from google.colab import drive
+    drive.mount("/content/drive")
+except Exception as e:
+    print(f"Drive not mounted ({e})")
+
+
+def stream_tokens(n):
+
+    ''' The first n tokens of FineWeb-Edu, documents closed by EOT as in model.py '''
+
+    from datasets import load_dataset
+    ds = load_dataset("HuggingFaceFW/fineweb-edu", name="sample-10BT", split="train", streaming=True)
+    out = []
+    for entry in ds:
+        out += tokenizer.encode_ordinary(entry["text"]) + [tokenizer.eot_token]
+        if len(out) >= n:
+            return torch.tensor(out[:n])
+
+
+cache = sorted(glob.glob(f"{DATA}/**/fineweb*_val_gpt2.bin", recursive=True))
+
+if cache:
+    val_data = torch.from_numpy(np.fromfile(cache[0], dtype=np.int32).astype(np.int64))
+    print(f"validation tokens: {cache[0]}, {len(val_data):,}")
+else:
+    val_data = stream_tokens(2_000_000)
+    print("validation cache not found: first 2M tokens of FineWeb-Edu, from the training portion")
+
+
+def get_batch(split, block_size, generator=None):
+
+    ''' Validation windows drawn as in model.py, so a seed gives the same batches '''
+
+    ix = torch.randint(len(val_data) - block_size - 1, (MICRO_BATCH,), generator=generator)
+    x = torch.stack([val_data[i:i + block_size] for i in ix])
+    y = torch.stack([val_data[i + 1:i + 1 + block_size] for i in ix])
+    return x.to(device), y.to(device)
 
 
 # =====================================================================
@@ -235,7 +291,7 @@ def make_activation(kind, K, width, threshold_scale, readout_scale, learnable, p
 #                              MODEL
 # =====================================================================
 
-class RMSNorm(nn.Module):
+class SpikingRMSNorm(nn.Module):
 
     '''Normalises over channels only'''
 
@@ -246,35 +302,6 @@ class RMSNorm(nn.Module):
 
     def forward(self, x):
         return self.weight * x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
-
-
-class CausalSelfAttention(nn.Module):
-
-    """Standard softmax attention with a causal mask."""
-
-    def __init__(self, d_model, n_heads, dropout, block):
-        super().__init__()
-        assert d_model % n_heads == 0
-        self.n_heads = n_heads
-        self.d_head = d_model // n_heads
-        self.qkv = nn.Linear(d_model, 3 * d_model)
-        self.proj = nn.Linear(d_model, d_model)
-
-        self.attn_drop = nn.Dropout(dropout)
-        self.resid_drop = nn.Dropout(dropout)
-        self.register_buffer("mask", torch.tril(torch.ones(block, block, dtype=torch.bool)))
-
-    def forward(self, x):
-        B, T, C = x.shape
-        q, k, v = self.qkv(x).chunk(3, dim=-1)
-        h = lambda t: t.reshape(B, T, self.n_heads, self.d_head).transpose(1, 2)
-
-        q, k, v = h(q), h(k), h(v)
-        att = (q @ k.transpose(-2, -1)) / math.sqrt(self.d_head)
-        att = att.masked_fill(~self.mask[:T, :T], float("-inf")).softmax(dim=-1)
-        att = self.attn_drop(att)
-
-        return self.resid_drop(self.proj((att @ v).transpose(1, 2).reshape(B, T, C)))
 
 
 class CausalSpikingSelfAttention(nn.Module):
@@ -293,9 +320,9 @@ class CausalSpikingSelfAttention(nn.Module):
         self.qkv = nn.Linear(d_model, 3 * d_model)
         self.proj = nn.Linear(d_model, d_model)
 
-        self.norm_q = RMSNorm(d_model)
-        self.norm_k = RMSNorm(d_model)
-        self.norm_v = RMSNorm(d_model)
+        self.norm_q = SpikingRMSNorm(d_model)
+        self.norm_k = SpikingRMSNorm(d_model)
+        self.norm_v = SpikingRMSNorm(d_model)
         self.resid_drop = nn.Dropout(dropout)
 
         def enc():
@@ -482,102 +509,120 @@ class FSGPT(nn.Module):
                 if getattr(blk.attn, "use_decay", False)]
 
 
-# ====================================================================
-#                            CONFIGURATIONS
-# ====================================================================
-#
-#  (checkpoint filename on Drive, label, attention, activation, K, signed, 
-#  learnable, block, use_decay, gamma). With SOURCE = "hf" only the
-#  spiking entry is loaded, from the published weights.
-
-CONFIGS = [
-
-    ("ckpt_fineweb_100m_ssa_K=2_p-_L_g_var_alpha_app_s1.pt", "ssa K=2 +/- L g var alpha app", "ssa", "fs", 2, True, True, BLOCK, True, gamma_ladder(N_HEADS, W_MIN, W_MAX)),
-]
-
-# ====================================================================
-#                             PROMPT SETS
-# ====================================================================
-#
-#  Each set carries its own sampling parameters, because they are not
-#  measuring the same thing.
-#
-#  Sampled at 0.8 for prose: judging fluency, so you want the model's
-#  actual output distribution, not its mode.
-#
-#  Greedy (top_k=1) for everything with one correct answer. Sampling a
-#  test that has a single right answer only adds noise to it.
-#
-#  WHAT TO EXPECT. At this scale the arithmetic and code sets will fail
-#  That is scale, not architecture: GPT-2 small saw 40 GB and still 
-#  cannot add two digits reliably, and FineWeb-Edu is filtered
-#  educational prose with very little code in it. They stay because the
-#  FAILURE MODE is the informative part. Prose is "forgiving", you can 
-#  lose the thread and still sound fine. Code and lists are not: an 
-#  unclosed bracket from forty tokens back is a visible attention failure, 
-#  and attention is the thing under test.
-#
-#  The induction set is the one that should actually work. Induction
-#  heads emerge early in training and are purely attentional, so this is
-#  the sharpest probe in the file. If the spiking arm cannot continue a
-#  pattern it has just been shown twice, that is a concrete, nameable
-#  result.
-# =======================================================================
-
-PROMPT_SETS = [
-    ("PROSE  (sampled, temp 0.8)", 0.8, 200, 250, [
-        "The process of photosynthesis",
-        "In mathematics, a prime number is",
-        "When scientists study the ocean floor, they",
-    ]),
-
-    ("INDUCTION  (greedy)", 1.0, 1, 24, [
-        "The capital of France is Paris. The capital of Italy is Rome. "
-        "The capital of Spain is",
-        "apple red, banana yellow, grape purple, apple red, banana yellow, grape",
-        "Dr. Alvarez studied volcanoes. Dr. Mehta studied glaciers. "
-        "Dr. Alvarez studied",
-    ]),
-
-    ("STRUCTURE / CODE  (greedy)", 1.0, 1, 120, [
-        "def factorial(n):\n    if n == 0:\n        return 1\n    return",
-        "Here are the three states of matter:\n1. Solid\n2. Liquid\n3.",
-        "import numpy as np\n\ndef mean(values):\n    total = 0\n    for v in values:",
-    ]),
-
-    ("ARITHMETIC  (greedy, expected to fail)", 1.0, 1, 16, [
-        "2 + 2 =",
-        "There are 12 eggs in a carton. Three cartons contain",
-        "7 times 8 equals",
-    ]),
-
-    ("LONG-RANGE AGREEMENT  (greedy)", 1.0, 1, 40, [
-        "The samples that the researchers collected from the lake bed "
-        "during the summer expedition",
-        "The teacher, along with the students who had arrived early that "
-        "morning from the neighbouring village,",
-    ]),
-]
+#  (checkpoint filename, then your tuple:
+#   label, attn, act, K, signed, learnable, block, use_decay, gamma)
+CONFIG = ("ckpt_fineweb_100m_ssa_K=2_p-_L_g_var_alpha_app_s1.pt", "ssa K=2 +/- L g var alpha app", "ssa", "fs", 2, True, True, BLOCK, True, gamma_ladder(N_HEADS, W_MIN, W_MAX))
 
 
-# ====================================================================
-#                               SAMPLER
-# ====================================================================
+# --------------------------------------------------------------------
+#                       THE RECURRENT ATTENTION
+# --------------------------------------------------------------------
+
+class RecurrentSpikingSelfAttention(CausalSpikingSelfAttention):
+
+    ''' Same parameters and buffers as CausalSpikingSelfAttention, so the
+    checkpoint loads unchanged. Only the time mixing is rewritten. '''
+
+    def gamma_per_head(self):
+
+        ''' gamma per head from the decay buffer actually loaded, 1 if no decay.
+        Not called gammas(): that name is the list the parent class stores. '''
+
+        if self.use_decay:
+            return self.decay[:, 1, 0]
+        return torch.ones(self.n_heads, device=self.mask.device, dtype=self.mask.dtype)
+
+    def encode(self, x):
+
+        ''' Position-wise part, identical to the quadratic forward '''
+
+        q, k, v = self.qkv(x).chunk(3, dim=-1)
+        return self.fs_q(self.norm_q(q)), self.fs_k(self.norm_k(k)), self.fs_v(self.norm_v(v))
+
+    def forward(self, x):
+        B, T, C = x.shape
+        H, Dh = self.n_heads, self.d_head
+        q, k, v = (t.reshape(B, T, H, Dh) for t in self.encode(x))
+        g = self.gamma_per_head().to(x.dtype)
+
+        S = x.new_zeros(B, H, Dh, Dh)
+        Z = x.new_zeros(B, H, 1)
+        out = []
+        for t in range(T):
+            S = g[None, :, None, None] * S + k[:, t, :, :, None] * v[:, t, :, None, :]
+            Z = g[None, :, None] * Z + 1.0
+            out.append((q[:, t, :, None, :] @ S).squeeze(-2) * self.attn_scale / Z)
+
+        o = torch.stack(out, dim=1).reshape(B, T, C)
+        return self.resid_drop(self.proj(o))
+
+    def step(self, x_t, state):
+
+        ''' One token, x_t is (B, C). The state is (S, Z), None at the start. '''
+
+        B, C = x_t.shape
+        H, Dh = self.n_heads, self.d_head
+        q, k, v = (t.reshape(B, H, Dh) for t in self.encode(x_t))
+        g = self.gamma_per_head().to(x_t.dtype)
+
+        if state is None:
+            S = x_t.new_zeros(B, H, Dh, Dh)
+            Z = x_t.new_zeros(B, H, 1)
+        else:
+            S, Z = state
+
+        S = g[None, :, None, None] * S + k[..., :, None] * v[..., None, :]
+        Z = g[None, :, None] * Z + 1.0
+        o = (q[..., None, :] @ S).squeeze(-2) * self.attn_scale / Z
+        return self.resid_drop(self.proj(o.reshape(B, C))), (S, Z)
+
+
+def to_recurrent(model):
+
+    ''' A copy of the model with every spiking attention block in recurrent form '''
+
+    rec = copy.deepcopy(model)
+    for blk in rec.blocks:
+        assert isinstance(blk.attn, CausalSpikingSelfAttention), "only the SSA model has a recurrent form"
+        blk.attn.__class__ = RecurrentSpikingSelfAttention
+    return rec.eval()
+
+
+def fsgpt_step(model, idx_t, t, states):
+
+    ''' One token through the whole recurrent model. idx_t is (B,), t the position. '''
+
+    x = model.drop(model.tok(idx_t) + model.pos.weight[t])
+    new_states = []
+    for blk, st in zip(model.blocks, states):
+        a, st = blk.attn.step(blk.norm1(x), st)
+        x = x + a
+        x = x + blk.mlp(blk.norm2(x))
+        new_states.append(st)
+    return model.head(model.norm(x)), new_states
+
 
 @torch.no_grad()
-def sample(model, idx, max_new, temperature, top_k, blk):
+def generate_recurrent(model, idx, max_new_tokens, temperature=1.0, top_k=None):
 
-    ''' nanoGPT semantics: crop the context to the block size, take the
-    last position, scale by temperature, truncate to top_k, draw.
-    top_k=1 is greedy, verified identical to argmax step by step. '''
+    ''' Same sampling as FSGPT.generate, one step per token. Limited to
+    model.block tokens in total: the position embedding stops there. '''
 
-    for _ in range(max_new):
-        c = idx if idx.shape[1] <= blk else idx[:, -blk:]
-        lg = model(c)[0][:, -1, :] / max(temperature, 1e-8)
-        if top_k:
-            v, _ = torch.topk(lg, min(top_k, lg.shape[-1]))
-            lg = lg.masked_fill(lg < v[:, [-1]], -float("inf"))
-        idx = torch.cat([idx, torch.multinomial(lg.softmax(-1), 1)], dim=1)
+    B, T0 = idx.shape
+    assert T0 + max_new_tokens <= model.block, "the learned positions stop at model.block"
+    states = [None] * len(model.blocks)
+    for t in range(T0):
+        logits, states = fsgpt_step(model, idx[:, t], t, states)
+
+    for i in range(max_new_tokens):
+        logits = logits / temperature
+        if top_k is not None:
+            v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+            logits[logits < v[:, [-1]]] = -float("inf")
+        nxt = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
+        idx = torch.cat((idx, nxt), dim=1)
+        if i < max_new_tokens - 1:
+            logits, states = fsgpt_step(model, nxt[:, 0], T0 + i, states)
     return idx
 
 
@@ -585,67 +630,134 @@ def sample(model, idx, max_new, temperature, top_k, blk):
 #                                 LOAD
 # --------------------------------------------------------------------
 
-def load_one(ckpt, label, attn, act, K, sg, ln, blk_cfg, use_dec, gmm):
+def load(ckpt, label, attn, act, K, sg, ln, blk_cfg, use_dec, gmm):
 
-    ''' One arm, from Hugging Face or from Drive, read on the CPU: the
+    ''' Weights from Hugging Face or from Drive, read on the CPU: the
     checkpoint also holds the optimizer state, which is not needed here '''
 
     if SOURCE == "hf":
-        if attn != "ssa":
-            print(f"\n### {label}: not on Hugging Face, only the spiking model is published")
-            return None
         from huggingface_hub import hf_hub_download
         path = hf_hub_download(repo_id=HF_REPO, filename="model.pt")
     else:
         path = f"{OUT}/{ckpt}"
 
         if not os.path.exists(path):
-            print(f"\n### {label}: not found -> {ckpt}")
-            print("    checkpoints actually in the folder:")
+            print(f"not found -> {ckpt}\ncheckpoints in the folder:")
 
             for f in sorted(glob.glob(f"{OUT}/ckpt_*.pt")):
-                print(f"      {os.path.basename(f)}")
-            return None
+                print(f"  {os.path.basename(f)}")
+            raise SystemExit
 
     ck = torch.load(path, map_location="cpu")
     sd = ck.get("model", ck.get("model_state_dict", ck))
     blk = sd["pos.weight"].shape[0] if "pos.weight" in sd else blk_cfg
     model = FSGPT(attn, act, K, sg, ln, QK_SCALE, MLP_SCALE, blk, use_dec, gmm)
 
+    # constant buffers may or may not be in the file, depending on the version
     own = set(model.state_dict())
     sd = {k: v for k, v in sd.items()
           if k in own or k.rsplit(".", 1)[-1] not in ("decay", "decay_sum", "mask", "n_keys", "dist")}
     model.load_state_dict(sd)
 
     best = ck.get("best", {})
-    print("\n" + "#" * 70)
-    print(f"#  {label}")
-    print(f"#  {path}")
-    print(f"#  step {ck.get('iter')}, best val {best.get('val', float('nan')):.4f}"
+    print(f"{label}\n{path}\nstep {ck.get('iter')}, best val {best.get('val', float('nan')):.4f}"
           f", context {blk}, {sum(p.numel() for p in model.parameters()):,} params")
-    print("#" * 70)
     del ck, sd
-    return {"label": label, "model": model.to(device).eval(), "block": blk}
+    return model.to(device).eval()
 
 
 # --------------------------------------------------------------------
-#                                 RUN
+#                                 TESTS
 # --------------------------------------------------------------------
 
-arms = [r for r in (load_one(*c) for c in CONFIGS) if r is not None]
-assert arms, "no checkpoint loaded"
+@torch.no_grad()
+def test_logits(model, rec, x, title="1) logits"):
 
-for label, temp, top_k, max_new, prompts in PROMPT_SETS:
-    print("\n" + "=" * 70)
-    print(f" {label}")
-    print("=" * 70)
+    ''' Same input through both forms, full sequence '''
 
-    for prompt in prompts:
-        print(f"\n--- {prompt!r}")
-        for a in arms:
-            torch.manual_seed(SEED)          # same seed for every arm
-            idx = torch.tensor([encode(prompt)], dtype=torch.long, device=device)
-            out = sample(a["model"], idx, max_new, temp, top_k, a["block"])
-            txt = decode(out[0].tolist()[len(idx[0]):])
-            print(f"\n  [{a['label']}]")
-            print("    " + txt.replace("\n", "\n    "))
+    a, _ = model(x)
+    b, _ = rec(x)
+    d = (a - b).abs()
+    same = (a.argmax(-1) == b.argmax(-1)).float().mean().item()
+    print(f"\n{title} on {x.shape[0]} x {x.shape[1]} tokens")
+    print(f"   max |diff| {d.max().item():.2e}   relative {(d.max() / a.abs().max()).item():.2e}"
+          f"   same argmax {100 * same:.3f}%")
+
+
+@torch.no_grad()
+def test_logits_f64(model, x):
+
+    ''' Test 1 again in float64. In float32 the two forms round differently,
+    and an FS input that sits within ~1e-7 of its threshold can fire in one
+    form and not in the other; the flipped spike then spreads along the
+    sequence through the attention. In float64 that margin shrinks by nine
+    orders of magnitude. The decay is rebuilt in float64 from the same
+    gammas, so both forms use identical weights: what is left is the method. '''
+
+    m64 = copy.deepcopy(model).double()
+    for blk in m64.blocks:
+        at = blk.attn
+        if at.use_decay:
+            g = at.decay[:, 1, 0]
+            i = torch.arange(at.decay.shape[-1], device=g.device, dtype=g.dtype)
+            dist = (i[:, None] - i[None, :]).clamp(min=0)
+            at.decay = torch.pow(g[:, None, None], dist[None]) * at.mask.to(g.dtype)
+            at.decay_sum = at.decay.sum(-1, keepdim=True)
+    test_logits(m64, to_recurrent(m64), x, title="4) logits in float64")
+    del m64
+
+
+@torch.no_grad()
+def test_loss(model, rec, n):
+
+    ''' Validation loss of both forms on the same batches '''
+
+    g = torch.Generator().manual_seed(SEED)
+    la, lb = [], []
+    for _ in range(n):
+        x, y = get_batch("val", model.block, g)
+        la.append(model(x, y)[1].item())
+        lb.append(rec(x, y)[1].item())
+    a, b = sum(la) / n, sum(lb) / n
+    print(f"\n2) validation loss on {n} batches")
+    print(f"   quadratic {a:.5f} (ppl {math.exp(a):.3f})   recurrent {b:.5f} (ppl {math.exp(b):.3f})"
+          f"   diff {abs(a - b):.1e}")
+
+
+@torch.no_grad()
+def test_generation(model, rec, prompt, new_tokens):
+
+    ''' Same prompt, same seed: same text? And how long does each take? '''
+
+    idx = torch.tensor([tokenizer.encode_ordinary(prompt)], dtype=torch.long, device=device)
+    new_tokens = min(new_tokens, model.block - idx.shape[1])
+    sync = torch.cuda.synchronize if idx.is_cuda else (lambda: None)
+
+    torch.manual_seed(SEED)
+    sync()
+    t0 = time.time()
+    a = model.generate(idx, new_tokens, temperature=0.8, top_k=200)
+    sync()
+    t_quad = time.time() - t0
+
+    torch.manual_seed(SEED)
+    sync()
+    t0 = time.time()
+    b = generate_recurrent(rec, idx, new_tokens, temperature=0.8, top_k=200)
+    sync()
+    t_rec = time.time() - t0
+
+    print(f"\n3) generation, {new_tokens} tokens from {prompt!r}")
+    print(f"   same tokens: {torch.equal(a, b)}")
+    print(f"   time: quadratic {t_quad:.2f} s   recurrent {t_rec:.2f} s   ({t_quad / t_rec:.1f}x)")
+    print("\n   " + decode(b[0].tolist()).replace("\n", "\n   "))
+
+
+model = load(*CONFIG)
+rec = to_recurrent(model)
+
+x, _ = get_batch("val", model.block, torch.Generator().manual_seed(SEED))
+test_logits(model, rec, x[:2])
+test_loss(model, rec, N_VAL)
+test_generation(model, rec, "The process of photosynthesis", NEW_TOKENS)
+test_logits_f64(model, x[:2])

@@ -1,5 +1,5 @@
 # =====================================================================
-#  FS-SSA, autoregressive: BPE GPT on FineWeb
+#  FS^2-SSA, autoregressive: BPE GPT on FineWeb
 #  Single-file Colab script. Runtime > Change runtime type > GPU
 #
 #  Byte-identical to the tiny-Shakespeare script except for the data section,
@@ -11,9 +11,8 @@
 #  Measures validation loss and perplexity for a causal spiking attention
 #  against a matched softmax control, against a matched softmax control. 
 #  Text samples come from generate.py.
-#
 #  ---------------------------------------------------------------------
-#  FOUR THINGS DIFFER FROM THE CLASSIFIER, AND ALL THREE ARE FORCED
+#  FOUR THINGS DIFFER FROM THE CLASSIFIER, AND ALL FOUR ARE FORCED
 #
 #  1) RMSNorm replaces BatchNorm on Q/K/V. BatchNorm1d over (B, C, T) pools
 #     statistics over TIME as well as batch, so in a causal model the
@@ -424,10 +423,10 @@ class SignedFSNeuron(nn.Module):
         self.width = width
         self.fs_on = make_fs(K, width, threshold_scale, readout_scale, learnable, per_channel, n_channels)
         self.fs_off = make_fs(K, width, threshold_scale, readout_scale, learnable, per_channel, n_channels)
-        self.alpha = nn.Parameter(0.1 + 0.9 * torch.rand(n_channels))                                        # alpha is a learnable parameter
+        self.alpha1 = nn.Parameter(0.1 + 0.9 * torch.rand(n_channels))
 
     def forward(self, x):
-        return self.alpha * (self.fs_on(x) - self.fs_off(-x))
+        return self.alpha1 * (self.fs_on(x) - self.fs_off(-x))
 
 
 def make_activation(kind, K, width, threshold_scale, readout_scale, learnable, per_channel, n_channels):
@@ -485,9 +484,9 @@ class CausalSelfAttention(nn.Module):
 
 
 class CausalSpikingSelfAttention(nn.Module):
-
+ 
     ''' Softmax-free causal attention with FS-coded Q, K, V '''
-
+ 
     def __init__(self, d_model, n_heads, K, width, qk_scale, readout_scale, signed, learnable, dropout, block, use_decay, gamma, w_min=W_MIN, w_max=W_MAX):
         super().__init__()
         assert d_model % n_heads == 0
@@ -496,30 +495,31 @@ class CausalSpikingSelfAttention(nn.Module):
         self.attn_scale = 1.0 / math.sqrt(self.d_head)
         self.signed = signed
         self.learnable = learnable
-
+        self.recurrent = False
+ 
         self.qkv = nn.Linear(d_model, 3 * d_model)
         self.proj = nn.Linear(d_model, d_model)
-
+ 
         self.norm_q = RMSNorm(d_model)
         self.norm_k = RMSNorm(d_model)
         self.norm_v = RMSNorm(d_model)
         self.resid_drop = nn.Dropout(dropout)
-
+ 
         def enc():
             if signed:
                 return SignedFSNeuron(K, width, qk_scale, readout_scale, learnable, True, d_model)
             return make_fs(K, width, qk_scale, readout_scale, learnable, True, d_model)
-
+ 
         self.fs_q = enc()
         self.fs_k = enc()
         self.fs_v = make_fs(K, width, qk_scale, readout_scale, learnable, True, d_model)
-
+ 
         self.register_buffer("mask", torch.tril(torch.ones(block, block)))
         self.register_buffer("n_keys", torch.arange(1, block + 1, dtype=torch.float32))
-
+ 
         self.use_decay = use_decay
         self.gammas = None
-
+ 
         if use_decay:
             if gamma is None:
                 self.gammas = gamma_ladder(n_heads, w_min, w_max if w_max is not None else block / 2)
@@ -527,45 +527,99 @@ class CausalSpikingSelfAttention(nn.Module):
                 self.gammas = [float(gamma)] * n_heads
             else:
                 self.gammas = [float(g) for g in gamma]
-
+ 
             assert len(self.gammas) == n_heads, f"Needed {n_heads} gamma, we have {len(self.gammas)}"
             assert all(0.0 < g <= 1.0 for g in self.gammas), "gamma out the interval (0, 1]"
-
+ 
             g = torch.tensor(self.gammas, dtype=torch.float32)[:, None, None]
             idx = torch.arange(block, dtype=torch.float32)
-
+ 
             dist = (idx[:, None] - idx[None, :]).clamp(min=0)
             D = torch.pow(g, dist[None]) * self.mask
             self.register_buffer("decay", D)
             self.register_buffer("decay_sum", D.sum(-1, keepdim=True))
-
+ 
     def decay_stats(self):
-
+ 
         if not self.use_decay:
             return None
         return {"gamma": [round(g, 5) for g in self.gammas], "window": [round(gamma_window(g), 1) for g in self.gammas], "learned": False}
-
+ 
+    def gamma_per_head(self):
+ 
+        ''' gamma per head read from the decay buffer (for the reccurent form)'''
+ 
+        if self.use_decay:
+            return self.decay[:, 1, 0]
+        return torch.ones(self.n_heads, device=self.mask.device, dtype=self.mask.dtype)
+ 
+    def encode(self, x):
+ 
+        ''' Position-wise part: projection, RMSNorm and FS coding '''
+ 
+        q, k, v = self.qkv(x).chunk(3, dim=-1)
+        return self.fs_q(self.norm_q(q)), self.fs_k(self.norm_k(k)), self.fs_v(self.norm_v(v))
+ 
+    def mix_parallel(self, q, k, v):
+ 
+        ''' T x T form. q, k, v are (B, H, T, Dh) '''
+ 
+        T = q.shape[2]
+        att = (q @ k.transpose(-2, -1)) * self.attn_scale
+ 
+        if self.use_decay:
+            att = att * self.decay[None, :, :T, :T]          # gamma_h^(i-j), causal
+            att = att / self.decay_sum[None, :, :T]          # weighted row mean
+        else:
+            att = att * self.mask[:T, :T]                     # causal
+            att = att / self.n_keys[:T][None, None, :, None]  # flat row mean
+ 
+        return att @ v
+ 
+    def mix_recurrent(self, q, k, v):
+ 
+        ''' Same result with a fixed state per head. q, k, v are (B, H, T, Dh) '''
+ 
+        B, H, T, Dh = q.shape
+        g = self.gamma_per_head().to(q.dtype)[None, :, None, None]
+        S = q.new_zeros(B, H, Dh, Dh)
+        Z = q.new_zeros(B, H, 1, 1)
+        out = []
+ 
+        for t in range(T):
+            S = g * S + k[:, :, t, :, None] * v[:, :, t, None, :]
+            Z = g * Z + 1.0
+            out.append((q[:, :, t, None, :] @ S) * self.attn_scale / Z)
+ 
+        return torch.cat(out, dim=2)
+ 
+    def step(self, x_t, state):
+ 
+        ''' One token, x_t is (B, C). The state is (S, Z), None at the first token. '''
+ 
+        B, C = x_t.shape
+        H, Dh = self.n_heads, self.d_head
+        q, k, v = (t.reshape(B, H, Dh) for t in self.encode(x_t))
+        g = self.gamma_per_head().to(x_t.dtype)[None, :, None, None]
+ 
+        if state is None:
+            S = x_t.new_zeros(B, H, Dh, Dh)
+            Z = x_t.new_zeros(B, H, 1, 1)
+        else:
+            S, Z = state
+ 
+        S = g * S + k[..., :, None] * v[..., None, :]
+        Z = g * Z + 1.0
+        o = (q[..., None, :] @ S) * self.attn_scale / Z
+        return self.resid_drop(self.proj(o.reshape(B, C))), (S, Z)
+ 
     def forward(self, x):
         B, T, C = x.shape
-        q, k, v = self.qkv(x).chunk(3, dim=-1)
-
-        q = self.fs_q(self.norm_q(q))
-        k = self.fs_k(self.norm_k(k))
-        v = self.fs_v(self.norm_v(v))
-
         h = lambda t: t.reshape(B, T, self.n_heads, self.d_head).transpose(1, 2)
-        q, k, v = h(q), h(k), h(v)
-
-        att = (q @ k.transpose(-2, -1)) * self.attn_scale
-
-        if self.use_decay:
-            att = att * self.decay[None, :, :T, :T]          # gamma_h^(i-j), causale
-            att = att / self.decay_sum[None, :, :T]          # media pesata per riga
-        else:
-            att = att * self.mask[:T, :T]                     # causale
-            att = att / self.n_keys[:T][None, None, :, None]  # media piatta per riga
-
-        return self.resid_drop(self.proj((att @ v).transpose(1, 2).reshape(B, T, C)))
+        q, k, v = (h(t) for t in self.encode(x))
+ 
+        o = self.mix_recurrent(q, k, v) if self.recurrent else self.mix_parallel(q, k, v)
+        return self.resid_drop(self.proj(o.transpose(1, 2).reshape(B, T, C)))
 
 
 class Block(nn.Module):
@@ -603,65 +657,123 @@ class FSGPT(nn.Module):
         self.tok = nn.Embedding(VOCAB, D_MODEL)
         self.pos = nn.Embedding(block, D_MODEL)
         self.drop = nn.Dropout(DROPOUT)
-
+ 
         self.blocks = nn.ModuleList([
             Block(D_MODEL, N_HEADS, attention, activation, K, WIDTH, qk_scale, mlp_scale, READOUT_SCALE, signed, learnable, DROPOUT, block, use_decay, gamma)
             for _ in range(N_LAYER)])
-
+ 
         self.norm = RMSNorm(D_MODEL)
         self.head = nn.Linear(D_MODEL, VOCAB, bias=False)
         self.head.weight = self.tok.weight
         self.apply(self._init)
-
+ 
     @staticmethod
     def _init(m):
         if isinstance(m, nn.Linear):
             nn.init.normal_(m.weight, std=0.02)
-
+ 
             if m.bias is not None:
                 nn.init.zeros_(m.bias)
-
+ 
         elif isinstance(m, nn.Embedding):
             nn.init.normal_(m.weight, std=0.02)
-
+ 
     def forward(self, idx, targets=None):
-
+ 
         B, T = idx.shape
         x = self.drop(self.tok(idx) + self.pos(torch.arange(T, device=idx.device)))
-
+ 
         for blk in self.blocks:
             x = blk(x)
         logits = self.head(self.norm(x))
-
+ 
         if targets is None:
             return logits, None
         loss = F.cross_entropy(logits.view(-1, VOCAB), targets.view(-1))
-
+ 
         return logits, loss
-
+ 
     @torch.no_grad()
     def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
         for _ in range(max_new_tokens):
-
+ 
             logits, _ = self(idx[:, -self.block:])
             logits = logits[:, -1, :] / temperature
-
+ 
             if top_k is not None:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float("inf")
-
+ 
             nxt = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
             idx = torch.cat((idx, nxt), dim=1)
-
+ 
         return idx
-
+ 
+    # ----------------------------------------------------------------
+    #                         RECURRENT FORM
+    # ----------------------------------------------------------------
+ 
+    def set_recurrent(self, on=True):
+ 
+        ''' Switch every spiking attention between the parallel and the recurrent form '''
+ 
+        for blk in self.blocks:
+            if isinstance(blk.attn, CausalSpikingSelfAttention):
+                blk.attn.recurrent = on
+        return self
+ 
+    def step(self, idx_t, t, states):
+ 
+        ''' One token through the whole model with the recurrent state '''
+ 
+        x = self.drop(self.tok(idx_t) + self.pos.weight[t])
+        new_states = []
+        
+        for blk, st in zip(self.blocks, states):
+            a, st = blk.attn.step(blk.norm1(x), st)
+            x = x + a
+            x = x + blk.mlp(blk.norm2(x))
+            new_states.append(st)
+        return self.head(self.norm(x)), new_states
+ 
+    @torch.no_grad()
+    def generate_recurrent(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+ 
+        ''' Same sampling as generate(), one recurrent step per token '''
+ 
+        assert all(isinstance(b.attn, CausalSpikingSelfAttention) for b in self.blocks), "SSA model only"
+        assert idx.shape[1] + max_new_tokens <= self.block, "the learned positions stop at self.block"
+ 
+        states = [None] * len(self.blocks)
+        for t in range(idx.shape[1]):
+            logits, states = self.step(idx[:, t], t, states)
+ 
+        for i in range(max_new_tokens):
+            logits = logits / temperature
+            
+            if top_k is not None:
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = -float("inf")
+                
+            nxt = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
+            idx = torch.cat((idx, nxt), dim=1)
+            
+            if i < max_new_tokens - 1:
+                logits, states = self.step(nxt[:, 0], idx.shape[1] - 1, states)
+ 
+        return idx
+ 
+    # ----------------------------------------------------------------
+    #                          STATISTICS
+    # ----------------------------------------------------------------
+ 
     def spike_stats(self):
-
+ 
         ''' Spikes per encoding site, per token, per channel '''
-
+ 
         leaves = lambda m: [x for x in m.modules()
                             if isinstance(x, (FSNeuron, LearnableFSNeuron))]
-
+ 
         def rate(sites):
             tot, cnt = 0.0, 0
             for s in sites:
@@ -671,7 +783,7 @@ class FSGPT(nn.Module):
                 tot += sum(x.spike_sum for x in ls)
                 cnt += ls[0].spike_n
             return tot / cnt if cnt else float("nan")
-
+ 
         attn, mlp = [], []
         for blk in self.blocks:
             attn += [getattr(blk.attn, nm) for nm in ("fs_q", "fs_k", "fs_v")
@@ -679,11 +791,11 @@ class FSGPT(nn.Module):
             if leaves(blk.mlp[1]):
                 mlp.append(blk.mlp[1])
         return {"attention": rate(attn), "mlp": rate(mlp)}
-
+ 
     def decay_stats(self):
-
-        '''Learned gamma per head, one entry per layer. Empty if the decay is off.'''
-
+ 
+        '''Fixed gamma per head, one entry per layer. Empty if the decay is off.'''
+ 
         return [blk.attn.decay_stats() for blk in self.blocks
                 if getattr(blk.attn, "use_decay", False)]
 
