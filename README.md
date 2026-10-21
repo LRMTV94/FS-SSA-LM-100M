@@ -110,7 +110,7 @@ The price is paid in training memory: the decay matrix is no longer one per head
 
 ### Three timesteps, K = 3
 
-The $K=3$ run gives three timesteps to every FS neuron (the reads, the Q/K/V codes, the MLP neuron) and keeps the thresholds of $K=2$. With the thresholds $T_k = s \cdot 2^{-k}$, the third step halves the smallest step of the code and widens its window from $1.5\,s$ to $1.75\,s$.
+The $K=3$ run gives three timesteps to every FS neuron (the reads, the Q/K/V codes, the MLP neuron): one K for the whole model, with the same threshold scales as the $K=2$ runs. With the thresholds $T_k = s \cdot 2^{-k}$, the third step halves the smallest step of the code and widens its window from $1.5\,s$ to $1.75\,s$.
 
 <p align="center">
 

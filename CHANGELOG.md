@@ -25,7 +25,7 @@ The projections of every block now read spikes, and the decay of each head can f
 * **Three runs**, with their histories in `v2.1.0/results/history`:
   * fixed ladder, K=2: validation loss 3.7542, perplexity 42.70;
   * data-dependent decay, K=2: 3.6991, perplexity 40.41;
-  * data-dependent decay, K=3 for every FS neuron, with the thresholds of K=2: 3.6573, perplexity 38.75.
+  * data-dependent decay, K=3 for every FS neuron, one K for the whole model, with the same threshold scales as the K=2 runs: **3.6573**, perplexity **38.75**.
 
 * `v2.1.0/diagnostic.py`, the diagnostic of v2.0 for the three v2.1.0 histories. It tells the runs apart by their exact names, which all carry `g var` and `alpha app` and fell into one category under the rules of v1, and compares them against the fixed-ladder run when the folder holds no dense control. It reads `results/history` and writes `figures/` next to itself, from any working folder and as a notebook cell.
 
