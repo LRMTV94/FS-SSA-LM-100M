@@ -131,6 +131,7 @@ def load_all_results(results_dir):
                     # -----------------------------------------------------------------------------
                     #              Classify strictly using the 'name' field from the JSON
                     # -----------------------------------------------------------------------------
+                    
                     category, marker, color = classify_run(
                         raw_name, content["_filename"]
                     )

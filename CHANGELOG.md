@@ -2,7 +2,60 @@
 
 This changelog contains the most important changes in this project. Versions follow semantic versioning: a patch release fixes code without changing any result, a minor release adds features, a major release changes the model or the way it runs.
 
-## v2.0.0: FS²-SSA (2026-10-07)
+## Next
+
+* Decay as a shift: values of `γ` rounded to `1 - 2^-n`, so that the decay of the state becomes a shift. A model with this decay needs a new training run.
+
+* Spiking RMSNorm in the model: the reciprocal square root as a product of factors `1 + 2^-k`, each chosen by a K=2 FS neuron, so far tested as a standalone module.
+
+* Spiking output head, the last dense layer.
+
+## v2.1.0: spiking residual highway (2026-10-21)
+
+The projections of every block now read spikes, and the decay of each head can follow the tokens. The repository is now organised by version; the v2.0 scripts, the v2.0 model and its published weights are unchanged.
+
+### Added
+
+* **`v2.1.0/model.py`, the spiking residual highway.** The inputs of `W_qkv`, `W_proj` and `W_up` are coded into signed FS spikes (`fs_in`, `fs_o` after `norm_o`, `mlp.fs_in`), as the input of `W_down` already was. Each branch normalises and codes its own input; the residual stream stays a real-valued accumulator. The output head still reads floats.
+
+* **Data-dependent decay** (`DataDecay`, `DataDecaySpikingSelfAttention`): `γ_t,h = exp(-softplus(w_h · s_t + b_h + β_h))`, computed from the spike input of `W_qkv` with 576 x 9 weights per block. `β` holds the fixed ladder and `w`, `b` start at zero, so at initialisation the model is the one with the fixed ladder. The parallel form uses the cumulative sum of `ln γ`; the recurrent form keeps the state of v2.0, `S_t = γ_t S_{t-1} + k_tᵀ v_t`, `Z_t = γ_t Z_{t-1} + 1`.
+
+* `data_decay` in `CONFIGS` and in `FSGPT` chooses the fixed ladder or the data-dependent decay. `CONFIGS` lists the three runs of the results under their names; at small scale each one gives the same weights and history, bit for bit, as the script it was trained with.
+
+* **Three runs**, with their histories in `v2.1.0/results/history`:
+  * fixed ladder, K=2: validation loss 3.7542, perplexity 42.70;
+  * data-dependent decay, K=2: 3.6991, perplexity 40.41;
+  * data-dependent decay, K=3 for every FS neuron, with the thresholds of K=2: 3.6573, perplexity 38.75.
+
+* `v2.1.0/diagnostic.py`, the diagnostic of v2.0 for the three v2.1.0 histories. It tells the runs apart by their exact names, which all carry `g var` and `alpha app` and fell into one category under the rules of v1, and compares them against the fixed-ladder run when the folder holds no dense control. It reads `results/history` and writes `figures/` next to itself, from any working folder and as a notebook cell.
+
+* `v2.1.0/generate.py` and `v2.1.0/recurrent_check.py`, self-contained like those of v2.0: they carry the classes of `v2.1.0/model.py` and take the K=3 checkpoint from Hugging Face (`HF_FILE`, `v2.1.0/model.pt`) or from Drive. The recurrent form comes from the classes themselves (`set_recurrent`, `generate_recurrent`); the four checks and the prompt sets of v2.0 are unchanged.
+
+* **Verified on the published K=3 checkpoint** by `v2.1.0/recurrent_check.py`, with no retraining: in float64 the parallel and the recurrent forms give identical logits, with the same argmax on 2 x 1024 tokens; every attention output goes through a spike read, which absorbs the rounding differences. In float32 83.6% of the tokens keep the same argmax, against 95.2% in v2.0, because v2.1 has more spike thresholds a rounding can cross; the validation loss is the same (3.69110 against 3.69117).
+
+* **Qualitative probes** of the K=3 checkpoint in the README, next to those of v1: outputs of `v2.1.0/generate.py`, seed 1234, one completion per prompt. The plural agreement and the domain prose hold; the binding of Alvarez to volcanoes and the singular agreement across "along with the students", both passed by v1, now fail; induction, arithmetic and code fail as in v1.
+
+* `v2.1.0/figures/validation.png`, with a dark variant: the validation curves of the three runs and of the v2.0 hybrid.
+
+### Changed
+
+* **The repository is organised by version.** `v2.0.0/` holds the scripts of v1 and v2.0 (`model.py`, `diagnostic.py`, `generate.py`, `recurrent_check.py`), unchanged, with their results and figures; `v2.1.0/` holds the v2.1 script with its histories and figure. README, CHANGELOG, LICENSE and `docs/` stay at the root.
+
+* The README is rewritten for v2.1 and the v2.0 README moves to `docs/v2.md`. Its text is unchanged; its links and the paths in `docs/v1.md` follow the new layout.
+
+* Training with the data-dependent decay runs at 8 sequences per forward pass and 8 accumulation steps, the same 65,536 tokens per step: the decay matrix is one per sequence, 341 MB of activations per sequence and block at 1024 tokens against 232 MB.
+
+* `v2.1.0/model.py` resumes a run from the update of the step its checkpoint was saved at, without evaluating that step again, and stops instead of resuming when the history records a best that the checkpoint does not have.
+
+### Known limits
+
+* The output head reads floats: 576 x 50,257 MACs per token.
+
+* One seed per run.
+
+* In-context binding and long-range agreement regress against v1 in the qualitative probes: the model takes the most recent candidate.
+
+## v2.0.0: FS²-SSA (2026-10-06)
 
 The project is renamed **FS²-SSA** (`FS2-SSA` in file names and code). The square stands for the two FS of the design: **few-spike** coding and **softmax-free** attention.
 
