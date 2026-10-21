@@ -95,6 +95,7 @@ $$S_t = \gamma_t \, S_{t-1} + k_t^\top v_t, \qquad Z_t = \gamma_t \, Z_{t-1} + 1
 The state is still $64 \times 64$ per head plus one normaliser, so every new token costs the same however many came before. `v2.1.0/recurrent_check.py` runs the checks of v2.0 on the published $K=3$ checkpoint:
 
 <p align="center">
+
 | check on the $K=3$ checkpoint | result |
 | :--- | :--- |
 | logits, float64, 2 x 1024 tokens | **identical** in the two forms, same argmax on every token |
@@ -112,6 +113,7 @@ The price is paid in training memory: the decay matrix is no longer one per head
 The $K=3$ run gives three timesteps to every FS neuron (the reads, the Q/K/V codes, the MLP neuron) and keeps the thresholds of $K=2$. With the thresholds $T_k = s \cdot 2^{-k}$, the third step halves the smallest step of the code and widens its window from $1.5\,s$ to $1.75\,s$.
 
 <p align="center">
+
 | code on a unit Gaussian input | $K=2$ | $K=3$ |
 | :--- | :---: | :---: |
 | signed code at $s = 0.75\,\sigma$ (reads, Q, K): window | $1.125\,\sigma$ | $1.313\,\sigma$ |
