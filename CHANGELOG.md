@@ -34,8 +34,6 @@ The K=3 model of v2.1 is trained again with a surrogate gradient sized to the th
 
 ### Changed
 
-* `v2.1.0/diagnostic.py` tells the v2.2.0 run apart by its exact name (`V22_RUNS`); the name column of its table widens to 52 characters to fit it.
-
 * The README is rewritten for v2.2: results, the section What is new in v2.2, the probes of v2.2 with the verdicts of v2.1 and v1 next to them, quick start, roadmap and repository tree. Its figures are those of `v2.2.0/figures`. The README of v2.1 moves to `docs/v2.1.md`, unchanged apart from its relative links.
 
 * The reading of the two probes that v2.1 failed is corrected: the margins show that its `were` came from a bias towards the plural in that construction, and its `glaciers` from a preference for the word, not from the most recent candidate.
