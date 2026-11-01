@@ -4,11 +4,51 @@ This changelog contains the most important changes in this project. Versions fol
 
 ## Next
 
+* Spiking output head, the last dense layer, coded into spikes from the first training step.
+
+* The v2.0 hybrid trained with the scheduled surrogate, to measure what spiking the inputs still costs with the same backward pass.
+
+* The two stages of the surrogate gain, apart: from one checkpoint in the stable phase of a warmup, stable, decay schedule, two cooldowns, one narrowing the surrogate and one keeping it fixed.
+
 * Decay as a shift: values of `γ` rounded to `1 - 2^-n`, so that the decay of the state becomes a shift. A model with this decay needs a new training run.
 
 * Spiking RMSNorm in the model: the reciprocal square root as a product of factors `1 + 2^-k`, each chosen by a K=2 FS neuron, so far tested as a standalone module.
 
-* Spiking output head, the last dense layer.
+## v2.2.0: scheduled surrogate (2026-11-01)
+
+The K=3 model of v2.1 is trained again with a surrogate gradient sized to the threshold of each neuron and narrowed by a scheduler. The forward pass and the number of parameters do not change; the scripts, the results and the published weights of v2.0 and v2.1 are unchanged.
+
+### Added
+
+* **`v2.2.0/model.py`, the scheduled surrogate.** `TriangularSpike` takes its half-width as a tensor, one value per channel, with peak `1 / width` and so area 1, as the step it stands for: narrowing it changes the shape of the gradient, not its scale. In `FSNeuron` and `LearnableFSNeuron` the half-width is `width · _WIDTH_SCALE · s`, with `s` the top threshold of each channel, detached in the learnable neuron so that no gradient flows through the width. `width_scale_at` and `set_width_scale` keep it at `WIDTH = 1.5` through the warmup and bring it down to `WIDTH_END = 1.0` along the cosine of the learning rate: below `1.0 s` the backward pass of a code would exceed the slope of its forward pass. The evaluation line prints the gradient norm of the last step, before clipping. The forward pass is the one of v2.1.0, so a v2.2 checkpoint loads into the classes of v2.1 and a v2.1 checkpoint into those of v2.2.
+
+* **One run**, `ssa K=3 +/- L g var alpha app data decay width sched`, the one entry of `CONFIGS`, from the same initial weights and on the same batches as the K=3 run of v2.1.0: validation loss **3.6145**, perplexity **37.13**, 0.0427 nats below v2.1.0 and level with the v2.0 hybrid (3.6228, and 3.6147 in its rerun). At equal steps the gap is 0.022 nats up to step 6,000 and 0.039 nats over steps 8,000 to 10,000. History in `v2.2.0/results/history`, checkpoint on Hugging Face as `v2.2.0/model.pt`.
+
+* `v2.2.0/diagnostic.py`: the best of the four runs (dense control, v2.0 hybrid, v2.1 at K=3, v2.2) against the dense control, and the paired table of the two K=3 runs, with the half-width at each step. It finds every history by the name it stores, in `v2.0.0/`, `v2.1.0/` and `v2.2.0/`, and writes three figures to `v2.2.0/figures`, one point per evaluation: the validation loss of the four runs, their last six evaluations, and the paired difference in perplexity above the half-width.
+
+* `v2.2.0/fluency_test.py`: 30 prompts (the three of `generate.py`, twelve written by hand, fifteen beginnings of validation documents with their human continuation), five continuations of 250 tokens per prompt and model with the same random draws, scored with GPT-2 large by rep-4, reference loss and PMI with the prompt, paired by prompt with 95% intervals from the t distribution. Each model takes its weights from Hugging Face or from Drive (`"hf"` or `"drive"` in `CONFIGS`), with progress bars. It writes every continuation with its scores, and a blind copy with the two models under letters. Between v2.2 and v2.1 no difference is distinguishable from zero.
+
+* `v2.2.0/generate.py` and `v2.2.0/recurrent_check.py`, self-contained like those of v2.1: they carry the classes of `v2.2.0/model.py` and take the checkpoint from Hugging Face (`HF_FILE`, `v2.2.0/model.pt`) or from Drive.
+
+* **Log-prob margins** in the README: agreement and plural bias on two minimal pairs, and the name, position and word effects on the four orderings of the binding prompt, for the v2.0 hybrid, v2.1 and v2.2.
+
+### Changed
+
+* `v2.1.0/diagnostic.py` tells the v2.2.0 run apart by its exact name (`V22_RUNS`); the name column of its table widens to 52 characters to fit it.
+
+* The README is rewritten for v2.2: results, the section What is new in v2.2, the probes of v2.2 with the verdicts of v2.1 and v1 next to them, quick start, roadmap and repository tree. Its figures are those of `v2.2.0/figures`. The README of v2.1 moves to `docs/v2.1.md`, unchanged apart from its relative links.
+
+* The reading of the two probes that v2.1 failed is corrected: the margins show that its `were` came from a bias towards the plural in that construction, and its `glaciers` from a preference for the word, not from the most recent candidate.
+
+### Known limits
+
+* The output head reads floats: 576 x 50,257 MACs per token.
+
+* One seed per run. The gain mixes the shape of the surrogate, present from the first steps, and its narrowing, which in this run cannot be told apart from the decay of the learning rate.
+
+* The v2.0 hybrid was trained with the old surrogate: matching it does not show that the spiking inputs cost nothing.
+
+* In-context binding still fails: v2.2 answers `volcanoes` for the position of the object and for the word, not for the name.
 
 ## v2.1.0: spiking residual highway (2026-10-21)
 
