@@ -32,6 +32,8 @@ This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/
 
 ## Key results
 
+<div align="center">
+
 | model | projection inputs | decay | $K$ | validation loss | perplexity |
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | Dense Transformer, Softmax + GELU (reference) | floats | softmax | n/a | 3.5399 | 34.46 |
@@ -40,6 +42,8 @@ This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/
 | FS²-SSA v2.1 | spikes | data-dependent | 2 | 3.6991 | 40.41 |
 | FS²-SSA v2.1 | spikes | data-dependent | 3 | 3.6573 | 38.75 |
 | **FS²-SSA v2.2, scheduled surrogate** | **spikes** | **data-dependent** | **3** | **3.6145** | **37.13** |
+
+</div>
 
 1. **Spiking the projection inputs costs 0.131 nats with the fixed ladder.** Coding the inputs of QKV, of the output projection and of the first MLP layer into spikes, instead of passing them as floats, moves the perplexity from 37.44 to 42.70.
 
@@ -77,11 +81,15 @@ The forward pass of an FS neuron is a step: it fires when its potential crosses 
 
 v2.2 changes the triangle and nothing else:
 
+<div align="center">
+
 | surrogate | v2.1 | v2.2 |
 | :--- | :--- | :--- |
 | half-width | 1.1, the same for every neuron | $c \cdot s$, with $s$ the top threshold of each channel, learned; no gradient flows through the width |
 | peak | 1 | $1/(c \cdot s)$: the area stays 1, as for the step it stands for |
 | $c$ during training | no schedule | 1.5 through the warmup, then down to 1.0 along the cosine of the learning rate |
+
+</div>
 
 With the area fixed, narrowing the triangle changes the shape of the gradient and not its size. $c = 1$ is the narrowest width at which the backward pass of a code never exceeds the slope of its forward pass: at $c = 0.75$ it would be 1.2 times steeper, at $c = 0.5$ 1.75 times, and the chain of resets would amplify the excess. Both choices have precedents: learning with surrogate gradients is robust to the shape of the surrogate and sensitive to its scale (Zenke & Vogels, 2021), and the sharpness of a surrogate can change during training (Li et al., 2021).
 
@@ -90,6 +98,8 @@ The forward pass, the 94,750,992 parameters and the recurrent form are those of 
 <p align="center">
   <img src="v2.2.0/figures/difference.png" alt="Perplexity of v2.2 minus v2.1 at equal steps, one point per evaluation, above the surrogate half-width of v2.2 along training" width="90%">
 </p>
+
+<div align="center">
 
 | step | half-width | v2.1, $K=3$ | v2.2 | difference, nats | difference, perplexity |
 | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -100,17 +110,23 @@ The forward pass, the 94,750,992 parameters and the recurrent form are those of 
 | 7,500 | $1.08\,s$ | 3.6989 | 3.6648 | $-0.0341$ | $-1.36$ |
 | 10,000 | $1.00\,s$ | 3.6579 | 3.6145 | $-0.0433$ | $-1.64$ |
 
+</div>
+
 In nats the gap holds near 0.02 for two thirds of the run and doubles in the last fifth. In perplexity it shrinks at first, because the same gap in nats is worth more points while the perplexity is high. From step 7,500 to its best, v2.2 gains 0.050 nats and v2.1 0.042. There is one seed per run: the growth of the second stage, 0.017 nats, is about twice the 0.008 nats by which the rerun of the hybrid moved.
 
 ### Fluency test
 
-On the published prompts one completion of v2.2 leaves photosynthesis for bees after three words, where v2.1 stayed on topic. One completion says more about the seed than about the model, so `v2.2.0/fluency_test.py` samples 30 prompts, 5 continuations of 250 tokens per prompt and model, with the same random draws for both models, and scores every continuation with GPT-2 large, which shares the tokenizer:
+On the published prompts one completion of v2.2 leaves photosynthesis for bees after three words, where v2.1 stayed on topic. One completion says more about the seed than about the model, so `v2.2.0/fluency.py` samples 30 prompts, 5 continuations of 250 tokens per prompt and model, with the same random draws for both models, and scores every continuation with GPT-2 large, which shares the tokenizer:
+
+<div align="center">
 
 | score | what it measures | v2.2 minus v2.1 |
 | :--- | :--- | :---: |
 | rep-4 | share of repeated 4-grams in the continuation: the loops | $-0.013 \pm 0.025$ |
 | reference loss | loss of the continuation under GPT-2 large, given the prompt, in nats per token | $+0.057 \pm 0.086$ |
 | PMI | loss without the prompt minus loss with it: how much the continuation still depends on the prompt | $+0.006 \pm 0.010$ |
+
+</div>
 
 The prompts are the three of `generate.py`, twelve written by hand on other topics and fifteen beginnings of validation documents. The intervals are at 95%, from the spread between prompts, since the five continuations of one prompt are not independent. None of the differences is distinguishable from zero: the photosynthesis completion was a bad draw. The human continuations of the validation documents mark a limit both models share: a PMI of about 0.23 nats per token against about 0.13, and a rep-4 of about 0.017 against 0.08.
 
@@ -119,6 +135,8 @@ The script writes every continuation with its scores, and a copy with the two mo
 ### Log-prob margins for the probes
 
 The margin $\log p(\text{right}) - \log p(\text{wrong})$, in nats and computed in float64, measures the agreement and binding probes on a continuous scale, where a completion gives a yes or a no. On a minimal pair, with $m_s$ the margin of the singular sentence and $m_p$ that of the plural one, the agreement effect is $A = (m_s + m_p)/2$ and the bias towards the plural is $W = (m_p - m_s)/2$.
+
+<div align="center">
 
 | margin, nats | v2.0 hybrid | v2.1, $K=3$ | v2.2 |
 | :--- | :---: | :---: | :---: |
@@ -131,13 +149,19 @@ The margin $\log p(\text{right}) - \log p(\text{wrong})$, in nats and computed i
 | the same with *"The sample"*, `was` over `were` | +2.85 | +4.47 | +2.54 |
 | agreement $A$ and plural bias $W$ on the pair | 3.79 and 0.94 | 4.70 and 0.23 | 2.60 and 0.07 |
 
+</div>
+
 The four orderings of the binding prompt (who is named first, who is asked) split its margin into the name asked, the position of the object (positive for the first one named) and the word (positive for `volcanoes`):
+
+<div align="center">
 
 | binding, nats | v2.0 hybrid | v2.1, $K=3$ | v2.2 |
 | :--- | :---: | :---: | :---: |
 | the name asked | +0.02 | +0.06 | $-0.50$ |
 | the first object named | +0.02 | +0.21 | +1.04 |
 | the word `volcanoes` | +0.07 | $-1.29$ | +1.23 |
+
+</div>
 
 The hybrid is the published `model.pt`, the rerun at 37.14.
 
@@ -149,12 +173,16 @@ The hybrid is the published `model.pt`, the rerun at 37.14.
 
 In v2.0 three products had a spike operand ($q k^\top$, the attention weights with $v$, the second MLP layer), while the other three projections received floats and stayed dense MACs. v2.1 codes every one of those inputs into signed spikes:
 
+<div align="center">
+
 | projection | input in v2.0 | input in v2.1 |
 | :--- | :--- | :--- |
 | $W_{qkv}$ | RMS-normed residual, floats | `fs_in`: signed FS code of the RMS-normed residual |
 | $W_{proj}$ | attention output, floats | `fs_o`: signed FS code of the RMS-normed attention output |
 | $W_{up}$ | RMS-normed residual, floats | `mlp.fs_in`: signed FS code of the RMS-normed residual |
 | $W_{down}$ | spikes of the MLP FS neuron | unchanged |
+
+</div>
 
 The residual stream stays a real-valued accumulator, a membrane shortcut: $x \leftarrow x + \text{attn}(x)$, then $x \leftarrow x + \text{mlp}(x)$. Each branch normalises and codes its own input, so there is no norm outside the branches. The output head still reads floats.
 
@@ -178,7 +206,7 @@ $$S_t = \gamma_t \, S_{t-1} + k_t^\top v_t, \qquad Z_t = \gamma_t \, Z_{t-1} + 1
 
 The state is still $64 \times 64$ per head plus one normaliser, so every new token costs the same however many came before. `v2.1.0/recurrent_check.py` runs the checks of v2.0 on the published $K=3$ checkpoint:
 
-<p align="center">
+<div align="center">
 
 | check on the $K=3$ checkpoint | result |
 | :--- | :--- |
@@ -186,7 +214,8 @@ The state is still $64 \times 64$ per head plus one normaliser, so every new tok
 | logits, float32, 2 x 1024 tokens | same argmax on **83.6%** of the tokens |
 | validation loss, float32, 10 batches | **3.69110** parallel, **3.69117** recurrent |
 | generation, 256 tokens on a GPU | 38.0 s parallel, 36.8 s recurrent |
-</p>
+
+</div>
 
 In float64 the logits are not just close but identical: every attention output goes through a spike read before $W_{proj}$, and the read absorbs the rounding differences between the two forms. In float32 a spike whose input sits within rounding distance of its threshold can still fire in one form and not in the other. v2.1 has more of those thresholds than v2.0, seven coding sites per block instead of four and three steps per code, so the top prediction moves on about one token in six instead of one in twenty. The loss does not move.
 
@@ -196,7 +225,7 @@ The price is paid in training memory: the decay matrix is no longer one per head
 
 The $K=3$ run gives three timesteps to every FS neuron (the reads, the Q/K/V codes, the MLP neuron): one K for the whole model, with the same threshold scales as the $K=2$ runs. With the thresholds $T_k = s \cdot 2^{-k}$, the third step halves the smallest step of the code and widens its window from $1.5\,s$ to $1.75\,s$.
 
-<p align="center">
+<div align="center">
 
 | code on a unit Gaussian input | $K=2$ | $K=3$ |
 | :--- | :---: | :---: |
@@ -206,7 +235,8 @@ The $K=3$ run gives three timesteps to every FS neuron (the reads, the Q/K/V cod
 | spikes per value | 0.97 | 1.51 |
 | MLP neuron at $s = 1.0\,\sigma$: correlation with GELU | 0.954 | 0.978 |
 | spikes per value | 0.37 | 0.61 |
-</p>
+
+</div>
 
 The third step costs one more timestep of latency and about 1.6 times the spikes per value.
 
@@ -224,10 +254,14 @@ The third step costs one more timestep of latency and about 1.6 times the spikes
 
 **Per-head decay ladder.** Nine values of $\gamma$, geometrically spaced so that the effective windows $1/(1-\gamma)$ run from 8 to 1024 tokens: the whole decay of the fixed runs, the starting point of the gates in the data-dependent ones.
 
+<div align="center">
+
 | head | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
 |---|---|---|---|---|---|---|---|---|---|
 | $\gamma$ | 0.875 | 0.93184 | 0.96284 | 0.97974 | 0.98895 | 0.99398 | 0.99672 | 0.99821 | 0.99902 |
 | window | 8 | 15 | 27 | 49 | 91 | 166 | 304 | 558 | 1024 |
+
+</div>
 
 **Channel gains.** A learnable gain $\alpha_c$ per channel on every signed pair, initialised uniformly in $(0.1, 1)$, restores heterogeneity between channels: **$-4.64$ perplexity** in v1 ($50.50 \to 45.86$).
 
@@ -236,6 +270,8 @@ The third step costs one more timestep of latency and about 1.6 times the spikes
 ---
 
 ## Runs (FineWeb-Edu, ~94M, ~655M tokens)
+
+<div align="center">
 
 | model | name in `v2.1.0/results/history` | parameters | best iter | val loss | perplexity | Δ loss | Δ PPL |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -246,6 +282,8 @@ The third step costs one more timestep of latency and about 1.6 times the spikes
 | v2.1, data-dependent decay, $K=3$ | `ssa K=3 +/- L g var alpha app data decay` | 94,750,992 | 9500 | 3.6573 | 38.75 | +0.1174 | +4.29 |
 | **v2.2, scheduled surrogate, $K=3$** | `ssa K=3 +/- L g var alpha app data decay width sched`, in `v2.2.0/results/history` | 94,750,992 | 10000 | **3.6145** | **37.13** | **+0.0746** | **+2.67** |
 
+</div>
+
 All the v2.1 runs share one setting: 10,000 steps of 64 sequences of 1024 tokens, AdamW with $\beta = (0.9, 0.999)$ and weight decay 0.15, peak learning rate $10^{-3}$ after 500 warmup steps with a cosine down to $10^{-4}$, gradient clipping at 1.0, surrogate half-width 1.1, seed 1. The three runs are the three entries of `CONFIGS` in `v2.1.0/model.py`, under the names above.
 
 The v2.2 run keeps that setting and replaces the fixed half-width 1.1 with the schedule of [What is new in v2.2](#what-is-new-in-v22). It is the one entry of `CONFIGS` in `v2.2.0/model.py`.
@@ -255,6 +293,8 @@ The v1 ablation (sign, static decay, channel gains, per-head ladder), the conver
 ---
 
 ## Qualitative probing
+
+<div align="center">
 
 | probe | test case | v2.2: observed behaviour | v2.2 | v2.1 | v1 |
 | :--- | :--- | :--- | :---: | :---: | :---: |
@@ -268,13 +308,15 @@ The v1 ablation (sign, static decay, channel gains, per-head ladder), the conver
 | Symbolic arithmetic | *2 + 2*, eggs in cartons, *7 times 8* | *"1 + 2 + 2 + 2 ..."*, *"the same number of eggs"*, *"1.5 times"* | **FAIL** | FAIL | FAIL |
 | Code and lists | factorial, states of matter, mean | `1`, then *"If the return 1 is 1, return 1"* repeated, then *"Solid"* with growing numbers, then *"the values of the values"* | **FAIL** | FAIL | not in the v1 table |
 
+</div>
+
 Outputs of `v2.2.0/generate.py` on the v2.2 checkpoint, seed 1234, one completion per prompt: the prose set is sampled at temperature 0.8 with top-k 200, every other set is greedy. The v2.1 column repeats the verdicts of [docs/v2.1.md](docs/v2.1.md), the v1 column the table of [docs/v1.md](docs/v1.md). The [log-prob margins](#log-prob-margins-for-the-probes) revise the reading of the two probes v2.1 failed: its `were` came from a bias towards the plural, which it keeps when the nearest noun is singular, and its `glaciers` from a preference for the word, not from the pull of the most recent candidate. [docs/v1.md](docs/v1.md) put the failure of factual induction down to the lack of data-dependent decay gates: with the gates of v2.1 and v2.2 it still fails, and v2.2 copies the first answer of the prompt. Single completions are probes, not a benchmark; the fluency test measures what one completion cannot.
 
 ---
 
 ## Quick start
 
-Training needs a GPU. `v2.2.0/model.py` is a single-file Colab script: it streams and tokenises FineWeb-Edu, then trains the runs listed in `CONFIGS`, saving checkpoints and histories to Drive. A run whose history is complete is skipped. In every version folder `generate.py` and `recurrent_check.py` are self-contained: they carry the classes of the trained model and take its weights from Hugging Face (`SOURCE = "hf"`, the default) or from Drive (`"drive"`); in `v2.2.0/fluency_test.py` each of the two models has its own source. `v2.2.0/diagnostic.py` reads the histories of the three version folders and writes its figures next to itself. The scripts of v2.0 are in `v2.0.0/`, unchanged, and `diagnostic.py` runs as a Colab cell after `model.py`.
+Training needs a GPU. `v2.2.0/model.py` is a single-file Colab script: it streams and tokenises FineWeb-Edu, then trains the runs listed in `CONFIGS`, saving checkpoints and histories to Drive. A run whose history is complete is skipped. In every version folder `generate.py` and `recurrent_check.py` are self-contained: they carry the classes of the trained model and take its weights from Hugging Face (`SOURCE = "hf"`, the default) or from Drive (`"drive"`); in `v2.2.0/fluency.py` each of the two models has its own source. `v2.2.0/diagnostic.py` reads the histories of the three version folders and writes its figures next to itself. The scripts of v2.0 are in `v2.0.0/`, unchanged, and `diagnostic.py` runs as a Colab cell after `model.py`.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -284,7 +326,7 @@ python v2.2.0/model.py             # v2.2: tokenises FineWeb-Edu, trains the K=3
 python v2.2.0/diagnostic.py        # v2.2: tables and figures against v2.1, the hybrid and the dense control
 python v2.2.0/generate.py          # v2.2: generation test on the K=3 model, self-contained
 python v2.2.0/recurrent_check.py   # v2.2: parallel against recurrent form, self-contained
-python v2.2.0/fluency_test.py      # v2.2: fluency against v2.1 on 30 prompts, scored with GPT-2 large
+python v2.2.0/fluency.py           # v2.2: fluency against v2.1 on 30 prompts, scored with GPT-2 large
 
 python v2.1.0/model.py             # v2.1: tokenises FineWeb-Edu, trains the three runs of the results
 python v2.1.0/generate.py          # v2.1: generation test on the K=3 model, self-contained
@@ -355,9 +397,8 @@ v2.2.0/                       v2.2: the scheduled surrogate
 ├── diagnostic.py             tables and figures: the four runs, their last evaluations, the paired difference
 ├── generate.py               generation test; self-contained, published weights or Drive checkpoints
 ├── recurrent_check.py        parallel against recurrent form; self-contained, like generate.py
-├── fluency_test.py           fluency against v2.1: 30 prompts, 5 continuations each, scored with GPT-2 large
-├── results/history/          training history of the v2.2 run
-├── results/fluency/          continuations and scores of the fluency test, and the blind copy
+├── fluency.py                fluency against v2.1: 30 prompts, 5 continuations each, scored with GPT-2 large
+├── results/history/          training history of the v2.2 run, with copies of the three it is compared with
 └── figures/                  validation loss, the last evaluations, the paired difference
 docs/
 ├── v1.md                     v1 in full: analysis, baseline halt, multi-seed, probes
