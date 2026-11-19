@@ -554,6 +554,7 @@ v2.0.0/                       v1 and v2.0: the hybrid model and its recurrent fo
 ├── results/history/          training histories of v1: the ablation and the dense control
 ├── results/stability_seed/   multi-seed stability runs
 └── figures/                  convergence curves
+
 v2.1.0/                       v2.1: the spiking residual highway
 ├── model.py                  model, training sweep, checks; CONFIGS holds the three runs of the results
 ├── diagnostic.py             comparison table and scatter figures of the runs in results/history
@@ -561,6 +562,7 @@ v2.1.0/                       v2.1: the spiking residual highway
 ├── recurrent_check.py        parallel against recurrent form on the K=3 model; self-contained, like generate.py
 ├── results/history/          training histories of the three runs
 └── figures/                  validation curves
+
 v2.2.0/                       v2.2: the scheduled surrogate
 ├── model.py                  the K=3 model of v2.1 with the scheduled surrogate; training and checks
 ├── diagnostic.py             tables and figures: the four runs, their last evaluations, the paired difference
@@ -569,6 +571,7 @@ v2.2.0/                       v2.2: the scheduled surrogate
 ├── fluency.py                fluency against v2.1: 30 prompts, 5 continuations each, scored with GPT-2 large
 ├── results/history/          training history of the v2.2 run, with copies of the three it is compared with
 └── figures/                  validation loss, the last evaluations, the paired difference
+
 v2.3.0/                       v2.3: the spiking output head
 ├── model.py                  the v2.2 model with the input of the output head coded into spikes; training and checks
 ├── diagnostic.py             tables and figures: the five runs, the paired difference, the three seeds, the fluency test
@@ -579,6 +582,7 @@ v2.3.0/                       v2.3: the spiking output head
 ├── results/stability_seed/   seeds 0 and 2 of v2.3, stopped at step 2,500 on the schedule of the full run
 ├── results/fluency/          continuations, blind reading and reports of the fluency test
 └── figures/                  validation loss, the last evaluations, the paired difference, the seeds, the fluency test
+
 docs/
 ├── v1.md                     v1 in full: analysis, baseline halt, multi-seed, probes
 ├── v2.md                     v2.0: the recurrent form and its verification
