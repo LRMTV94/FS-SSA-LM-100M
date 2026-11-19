@@ -474,7 +474,9 @@ v2.3 keeps the agreement of v2.2, with a larger bias towards the plural on the l
 
 ## Quick start
 
-Training needs a GPU. `v2.3.0/model.py` is a single-file Colab script: it streams and tokenises FineWeb-Edu, then trains the runs listed in `CONFIGS`, saving checkpoints and histories to Drive. A run whose history is complete is skipped. In every version folder `generate.py` and `recurrent_check.py` are self-contained: they carry the classes of the trained model. Those of v2.3.0, with `fluency.py`, read every model from Hugging Face, and `fluency.py` and `recurrent_check.py` rebuild the validation split from the FineWeb-Edu stream: they need nothing but themselves and the published weights. Those of the earlier versions take the weights from Hugging Face (`SOURCE = "hf"`, the default) or from Drive (`"drive"`). `v2.3.0/diagnostic.py` reads the histories of `v2.2.0/` and `v2.3.0/` and writes its figures next to itself. The scripts of v2.0 are in `v2.0.0/`, unchanged, and `diagnostic.py` runs as a Colab cell after `model.py`.
+Training needs a GPU. `v2.3.0/model.py` is a single-file Colab script: it streams and tokenises FineWeb-Edu, then trains the runs listed in `CONFIGS`, saving checkpoints and histories to Drive. A run whose history is complete is skipped. In every version folder `generate.py` and `recurrent_check.py` are self-contained: they carry the classes of the trained model. 
+
+Those of v2.3.0, with `fluency.py`, read every model from Hugging Face, and `fluency.py` and `recurrent_check.py` rebuild the validation split from the FineWeb-Edu stream: they need nothing but themselves and the published weights. Those of the earlier versions take the weights from Hugging Face (`SOURCE = "hf"`, the default) or from Drive (`"drive"`). `v2.3.0/diagnostic.py` reads the histories of `v2.2.0/` and `v2.3.0/` and writes its figures next to itself. The scripts of v2.0 are in `v2.0.0/`, unchanged, and `diagnostic.py` runs as a Colab cell after `model.py`.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
