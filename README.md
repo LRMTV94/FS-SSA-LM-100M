@@ -75,7 +75,8 @@ This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/
 
 12. **The cost is not the seed.** Seeds 0 and 2 of v2.3, on the same schedule and stopped at step 2,500, stay above v2.2 at every evaluation: averaged over steps 1,500 to 2,500 the three seeds are 0.017, 0.023 and 0.039 nats behind it, with a spread of 0.011 nats between them.
 
-13. **Fluency does not change, and neither do the probes.** Two runs of the paired fluency test find no difference between v2.3 and v2.2 distinguishable from zero; at equal share of repeated 4-grams the reference loss differs by $-0.017 \pm 0.045$ nats. The agreement margins hold (2.10 and 2.59 nats against 1.97 and 2.60), and none of the four models measured binds the object to the name.
+13. **Fluency does not change, and neither do the probes.** Two runs of the paired fluency test, the first finds fewer loops in v2.3 (share of repeated 4-grams $-0.024 \pm 0.018$) and the second does not ($+0.006 \pm 0.036$); the other differences are compatible with zero in both runs, and at equal share of repeated 4-grams the reference loss differs by $-0.017 \pm 0.045$ nats.
+
 
 <p align="center">
   <img src="v2.3.0/figures/validation.png" alt="Validation loss of the dense control, of the v2.0 hybrid, of v2.1 at K=3, of v2.2 and of v2.3, one point per evaluation, steps 1,000 to 10,000" width="90%">

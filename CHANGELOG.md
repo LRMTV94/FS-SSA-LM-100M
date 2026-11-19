@@ -34,7 +34,8 @@ The input of the output head is coded into spikes, so every matrix product of th
 
 * **Verified on the published v2.3 checkpoint** by `v2.3.0/recurrent_check.py`, with no retraining: in float64 the parallel and the recurrent forms give identical logits, with the same argmax on 2 x 1024 tokens. In float32 85.4% of the tokens keep the same argmax, against 83.6% in v2.1, and the validation loss is the same (3.66596 against 3.66604); the two forms then sample different continuations from the same seed.
 
-* **Fluency results** in `v2.3.0/results/fluency`: the continuations of the second run with their scores, the blind reading and its key, and the reports of both runs. Neither run finds a difference between v2.3 and v2.2 distinguishable from zero; at equal rep-4 the reference loss differs by -0.017 ± 0.045 nats.
+* **Fluency results** in `v2.3.0/results/fluency`: the continuations of the second run with their scores, the blind reading and its key, and the reports of both runs. Run 1 finds fewer loops in v2.3 (rep-4 -0.024 ± 0.018), run 2 does not (+0.006 ± 0.036), and the other differences are compatible with zero in both; at equal rep-4 the reference loss differs by -0.017 ± 0.045 nats.
+
 
 ### Changed
 
