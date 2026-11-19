@@ -1,0 +1,602 @@
+{
+ "0.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "0.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "0.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "0.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "0.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "1.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "1.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "1.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "1.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "1.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "2.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "2.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "2.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "2.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "2.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "3.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "3.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "3.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "3.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "3.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "4.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "4.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "4.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "4.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "4.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "5.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "5.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "5.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "5.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "5.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "6.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "6.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "6.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "6.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "6.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "7.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "7.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "7.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "7.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "7.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "8.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "8.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "8.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "8.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "8.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "9.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "9.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "9.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "9.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "9.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "10.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "10.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "10.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "10.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "10.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "11.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "11.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "11.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "11.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "11.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "12.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "12.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "12.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "12.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "12.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "13.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "13.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "13.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "13.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "13.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "14.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "14.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "14.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "14.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "14.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "15.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "15.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "15.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "15.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "15.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "16.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "16.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "16.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "16.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "16.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "17.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "17.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "17.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "17.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "17.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "18.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "18.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "18.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "18.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "18.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "19.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "19.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "19.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "19.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "19.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "20.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "20.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "20.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "20.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "20.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "21.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "21.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "21.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "21.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "21.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "22.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "22.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "22.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "22.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "22.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "23.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "23.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "23.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "23.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "23.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "24.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "24.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "24.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "24.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "24.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "25.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "25.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "25.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "25.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "25.4": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "26.0": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "26.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "26.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "26.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "26.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "27.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "27.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "27.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "27.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "27.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "28.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "28.1": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "28.2": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "28.3": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "28.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "29.0": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ },
+ "29.1": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "29.2": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "29.3": {
+  "A": "v2.3, spiking head",
+  "B": "v2.2, float head"
+ },
+ "29.4": {
+  "A": "v2.2, float head",
+  "B": "v2.3, spiking head"
+ }
+}

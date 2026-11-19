@@ -4,7 +4,9 @@ This changelog contains the most important changes in this project. Versions fol
 
 ## Next
 
-* Spiking output head, the last dense layer, coded into spikes from the first training step.
+* **Scaling to about 200M parameters**, with a dense control of the same size, both evaluated zero-shot on ARC-Easy, PIQA and HellaSwag. The first step needs no training: the same evaluation of the published checkpoints, from the v2.0 hybrid to v2.3.
+
+* The spikes of the trained model counted at every code and at the head, to turn the additions of one token into an energy estimate.
 
 * The v2.0 hybrid trained with the scheduled surrogate, to measure what spiking the inputs still costs with the same backward pass.
 
@@ -13,6 +15,44 @@ This changelog contains the most important changes in this project. Versions fol
 * Decay as a shift: values of `γ` rounded to `1 - 2^-n`, so that the decay of the state becomes a shift. A model with this decay needs a new training run.
 
 * Spiking RMSNorm in the model: the reciprocal square root as a product of factors `1 + 2^-k`, each chosen by a K=2 FS neuron, so far tested as a standalone module.
+
+## v2.3.0: spiking output head (2026-11-19)
+
+The input of the output head is coded into spikes, so every matrix product of the model has a spike operand. The model gains 10,944 parameters; the scripts, the results and the published weights of v2.0, v2.1 and v2.2 are unchanged.
+
+### Added
+
+* **`v2.3.0/model.py`, the spiking output head.** On the SSA model `FSGPT` codes the final RMSNorm with a `SignedFSNeuron`, `fs_head` (K=3, the threshold scale of the reads, learnable per channel, gain `alpha1`), before `W_head`, which stays tied to the embedding. `read_head` serves `forward` and `step`, and `spike_stats` reports the head. `fs_head` is built after the initialisation with the random state put back, so every other weight and every batch are those of the v2.2 run: the two runs are paired. 94,761,936 parameters, 10,944 more than v2.2. The 28.95 million MACs per token of the head become additions; the multiplications left in floating point, about 813,000 per token, are 0.87% of the operations of the matrix products, 0.76% without the gains and the norm weights, which can be folded into the weights and thresholds that follow.
+
+* **One run**, `ssa K=3 +/- L g var alpha app data decay width sched spike head`, the one entry of `CONFIGS`: validation loss **3.6395**, perplexity **38.07**, 0.0250 nats above v2.2 and 0.0177 below v2.1 at K=3. At equal steps the gap to v2.2 is 0.022, 0.019 and 0.024 nats over steps 1,500 to 3,000, 4,000 to 6,000 and 8,000 to 10,000. History in `v2.3.0/results/history`, checkpoint on Hugging Face as `v2.3.0/model.pt`.
+
+* **Seeds 0 and 2** of the same run, on the same schedule, stopped at step 2,500, in `v2.3.0/results/stability_seed`: averaged over steps 1,500 to 2,500 the three seeds are 0.017, 0.023 and 0.039 nats behind v2.2, with a spread of 0.011 nats.
+
+* `v2.3.0/diagnostic.py`: reads the four runs of `v2.2.0/results/history`, the v2.3 run, its seeds and the continuations of the fluency test, each history found by the name and the seed it stores. It prints the five runs against the dense control, the paired table of v2.3 and v2.2, v2.3 against v2.1, the three seeds, and the fluency test with every pair, the pairs without a loop and the reference loss at equal rep-4. It writes five figures to `v2.3.0/figures`: the validation loss, the last six evaluations, the paired difference above the half-width, the seeds, and the reference loss against rep-4.
+
+* `v2.3.0/generate.py`, `v2.3.0/recurrent_check.py` and `v2.3.0/fluency.py`, self-contained: they carry the classes of `v2.3.0/model.py`, and a checkpoint without the head code, v2.2 or v2.1, loads into them with the head in floats, recognised from its keys. `generate.py` and `fluency.py` compare v2.3 with v2.2.
+
+* **Verified on the published v2.3 checkpoint** by `v2.3.0/recurrent_check.py`, with no retraining: in float64 the parallel and the recurrent forms give identical logits, with the same argmax on 2 x 1024 tokens. In float32 85.4% of the tokens keep the same argmax, against 83.6% in v2.1, and the validation loss is the same (3.66596 against 3.66604); the two forms then sample different continuations from the same seed.
+
+* **Fluency results** in `v2.3.0/results/fluency`: the continuations of the second run with their scores, the blind reading and its key, and the reports of both runs. Neither run finds a difference between v2.3 and v2.2 distinguishable from zero; at equal rep-4 the reference loss differs by -0.017 ± 0.045 nats.
+
+### Changed
+
+* **The scripts of v2.3.0 read every model from Hugging Face.** Google Drive could not be mounted in the runtime of the tests (a credential error of Colab), so loading from Drive was removed: the source switches and the Drive paths give way to the file of each model on Hugging Face, in `CONFIGS`. `fluency.py` and `recurrent_check.py` rebuild the validation split from the FineWeb-Edu stream as `model.py` builds it, the tokens from 450M to 500M, in about a minute and a half, and `fluency.py` writes its files to the working folder of the runtime.
+
+* `v2.3.0/diagnostic.py` reads the runs it compares from `v2.2.0/results/history`, instead of keeping copies of them.
+
+* The README is rewritten for v2.3: results, the section What is new in v2.3, a new section that counts the multiplications and additions of one token in v2.2 and v2.3, the probes of v2.3 with the verdicts of v2.2, v2.1 and v1 next to them, the log-prob margins with a column for v2.3, quick start, roadmap and repository tree. Its figures are those of `v2.3.0/figures`. The README of v2.2 moves to `docs/v2.2.md`, unchanged apart from its relative links.
+
+### Known limits
+
+* One full-length seed: seeds 0 and 2 stop at step 2,500, and v2.2 has a single seed.
+
+* Generation is not reproducible bit for bit across sessions: the two runs of the fluency test drew different continuations with the same seeds, and the continuations of the first run were not kept.
+
+* The spikes that reach the head are not counted yet, so the additions of the head give no energy estimate.
+
+* In-context binding still fails: v2.3 prefers `volcanoes` for the word, in all four orderings of the prompt.
 
 ## v2.2.0: scheduled surrogate (2026-11-01)
 
