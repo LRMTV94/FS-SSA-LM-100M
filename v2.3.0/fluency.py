@@ -834,7 +834,7 @@ class FSGPT(nn.Module):
 
 CONFIGS = [
 
-    ("v.2.3.0/model.pt", "v2.3, spiking head", "ssa", "fs", 3, True, True, BLOCK, True,
+    ("v2.3.0/model.pt", "v2.3, spiking head", "ssa", "fs", 3, True, True, BLOCK, True,
      gamma_ladder(N_HEADS, W_MIN, W_MAX), True),
 
     ("v2.2.0/model.pt", "v2.2, float head", "ssa", "fs", 3, True, True, BLOCK, True,

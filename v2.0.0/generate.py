@@ -365,14 +365,14 @@ class Block(nn.Module):
     def __init__(self, d_model, n_heads, attention, activation, K, width, qk_scale, mlp_scale, readout_scale, signed, learnable, dropout, block, use_decay, gamma):
         super().__init__()
 
-        self.norm1 = SpikingRMSNorm(d_model)
+        self.norm1 = RMSNorm(d_model)
         if attention == "softmax":
             self.attn = CausalSelfAttention(d_model, n_heads, dropout, block)
         elif attention == "ssa":
             self.attn = CausalSpikingSelfAttention(d_model, n_heads, K, width, qk_scale, readout_scale, signed, learnable, dropout, block, use_decay, gamma)
         else:
             raise ValueError(attention)
-        self.norm2 = SpikingRMSNorm(d_model)
+        self.norm2 = RMSNorm(d_model)
         hidden = d_model * MLP_RATIO
 
         self.mlp = nn.Sequential(
@@ -400,7 +400,7 @@ class FSGPT(nn.Module):
             Block(D_MODEL, N_HEADS, attention, activation, K, WIDTH, qk_scale, mlp_scale, READOUT_SCALE, signed, learnable, DROPOUT, block, use_decay, gamma)
             for _ in range(N_LAYER)])
 
-        self.norm = SpikingRMSNorm(D_MODEL)
+        self.norm = RMSNorm(D_MODEL)
         self.head = nn.Linear(D_MODEL, VOCAB, bias=False)
         self.head.weight = self.tok.weight
         self.apply(self._init)

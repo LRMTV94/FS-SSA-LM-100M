@@ -1,6 +1,3 @@
-!pip install -q lm-eval tiktoken
-
-
 # --------------------------------------------------------------------
 #       ZERO-SHOT BENCHMARKS, v2.3.0: ARC-EASY, PIQA, HELLASWAG
 # --------------------------------------------------------------------
@@ -38,6 +35,9 @@
 #  in float32 a rounding can flip a spike, so the scores would depend
 #  on how the requests are grouped. Every question of every arm is
 #  written to OUT.
+#
+#  Use this command before launching the program:
+#  !pip install -q lm-eval tiktoken
 # --------------------------------------------------------------------
 
 import json
