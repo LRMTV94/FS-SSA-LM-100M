@@ -4,7 +4,9 @@ This changelog contains the most important changes in this project. Versions fol
 
 ## Next
 
-* **Scaling to about 200M parameters**, with a dense control of the same size, both evaluated zero-shot on ARC-Easy, PIQA and HellaSwag. The first step needs no training: the same evaluation of the published checkpoints, from the v2.0 hybrid to v2.3.
+* **Scaling to about 200M parameters**, with a dense control of the same size, both evaluated zero-shot on **ARC-Easy, PIQA and HellaSwag** with `v2.4.0/zero_shot.py`, against the numbers of v2.4.0.
+
+* The v2.0 hybrid and v2.1 on the same benchmarks; the hybrid needs the classes of v2.0.0.
 
 * The spikes of the trained model counted at every code and at the head, to turn the additions of one token into an energy estimate.
 
@@ -15,6 +17,44 @@ This changelog contains the most important changes in this project. Versions fol
 * Decay as a shift: values of `γ` rounded to `1 - 2^-n`, so that the decay of the state becomes a shift. A model with this decay needs a new training run.
 
 * Spiking RMSNorm in the model: the reciprocal square root as a product of factors `1 + 2^-k`, each chosen by a K=2 FS neuron, so far tested as a standalone module.
+
+## v2.4.0: dense control on 10,000 steps, zero-shot benchmarks (2026-11-24)
+
+A dense control trained on the recipe of v2.2 and v2.3, and the dense control, v2.2 and v2.3 evaluated zero-shot on ARC-Easy, PIQA and HellaSwag. The model does not change. The new dense control replaces the one of v1 as the reference of the comparisons; the scripts, the results and the published weights of the earlier versions are unchanged, apart from the fixes below.
+
+### Added
+
+* **`v2.4.0/model.py`, the dense control on 10,000 steps.** The `model.py` of v2.3.0 with one entry of `CONFIGS`, `softmax + gelu 10k`: Softmax + GELU on the 10,000 steps, the learning rate and the data of v2.2 and v2.3. Every class and the training loop are unchanged. 93,340,800 parameters. Best validation loss **3.4554** at step 9,500, perplexity **31.67**, 0.0845 nats below the control of v1, which was trained on a schedule of 7,500 steps. Against it v2.2 is 0.1591 nats behind and v2.3 0.1841; at equal steps the gaps are 0.183, 0.156 and 0.165 nats for v2.2 and 0.204, 0.175 and 0.189 for v2.3 over steps 1,500 to 3,000, 4,000 to 6,000 and 8,000 to 10,000. History in `v2.4.0/results/history`, checkpoint on Hugging Face as `dense/model.pt`, the one of step 9,500.
+
+* **`v2.4.0/zero_shot.py`, zero-shot benchmarks.** ARC-Easy (test split, 2,376 questions), PIQA (validation, 1,838) and HellaSwag (validation, 10,042) through the LM Evaluation Harness, for the dense control, v2.2 and v2.3. Every choice is scored by its log-likelihood, one sequence per forward pass; `acc`, `acc_norm` and the margin of every question are compared pair by pair, question by question, with 95% intervals over the questions. Self-contained, with the classes of v2.3.0 and the weights from Hugging Face; it writes its files after every task of every model and starts again from the first one missing.
+
+* **Results** in `v2.4.0/results/zero_shot`: every question of every model with the log-likelihood of every choice, the accuracies as lm-eval reports them, and the printed report. With `acc_norm`, on ARC-Easy, PIQA and HellaSwag: the dense control 40.19, 58.43 and 27.98 (mean 42.20), v2.2 39.73, 57.45 and 27.39 (41.53), v2.3 38.51, 56.96 and 27.01 (40.83). Paired, the dense control is ahead of v2.3 by 1.38 ± 0.81 points on the mean of the three; the other pairs stay inside their intervals, while the margins put the dense control ahead of both spiking models on ARC-Easy and HellaSwag.
+
+### Changed
+
+* **The reference of every comparison is the dense control of v2.4.0.** The README measures every run against it: the gaps of v2.2 and v2.3, 0.0746 and 0.0996 nats against the control of v1, become 0.1591 and 0.1841.
+
+* **The control of v1 was not saturated.** `docs/v1.md` stops it at step 7,500 because its validation loss had flattened, and reads the flattening as saturation. Its history records a schedule of 7,500 steps, so its learning rate had reached the minimum there: on the 10,000-step schedule the same model is at 3.5459 at step 7,500 and goes on to 3.4554 at step 9,500, 0.0845 nats below the control of v1. Nor did that control have the token budget of the spiking runs, as the entry of v1.0.0 says: 7,500 steps, 491M tokens, against 10,000 and 655M. `docs/v1.md` and the entries below stay as they were published; the README no longer calls that control compute-matched.
+
+* The README is lighter: the results with the new reference, a section on the dense control, one on the zero-shot benchmarks and the spiking output head in brief. The sections on v2.1 and v2.2 leave it, since their READMEs are in `docs/`, and the tables of the recurrent form, the seeds, the fluency tests and the margins of v2.3 stay in its README, which moves to `docs/v2.3.md`, unchanged apart from its relative links.
+
+### Fixed
+
+* `v2.3.0/generate.py` and `v2.3.0/fluency.py` read the v2.3 checkpoint as `v2.3.0/model.pt`. They still had `v.2.3.0/model.pt`, the name of the folder on Hugging Face before it was renamed, and could not load it. `fluency.py` writes `fluency_samples.jsonl`, `fluency_blind.txt` and `fluency_blind_key.json`, the names of the files in `v2.3.0/results/fluency`, and both scripts name `v2.3.0/model.py` as the source of their classes.
+
+* `v2.3.0/current_check.py` is renamed `v2.3.0/recurrent_check.py`, the name the README and this changelog give it.
+
+* `v2.0.0/generate.py` builds its model again. `Block` and `FSGPT` called `SpikingRMSNorm`, a class the file does not define, and stopped with a `NameError` in a new session; they call `RMSNorm`, the class the file defines, with the same code and the same keys.
+
+### Known limits
+
+* One seed for the dense control, as for v2.2 and v2.3.
+
+* The dense control does not see the batches of v2.2 and v2.3: its initialisation consumes the random state differently.
+
+* The v2.0 hybrid and v2.1 are not evaluated on the benchmarks yet.
+
+* At this scale HellaSwag stays near chance, 27 to 28% against 25%, and PIQA does not separate the three models.
 
 ## v2.3.0: spiking output head (2026-11-19)
 

@@ -13,7 +13,7 @@ The square in the name stands for the two FS of the design: **few-spike** coding
 This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/FS_Softmax_Free_Attention), scaling softmax-free spiking self-attention from synthetic classifiers and toy benchmarks to open-domain autoregressive pretraining.
 
 > [!IMPORTANT]
-> **Next: FS²-SSA at about 200M parameters**, trained next to a dense control of the same size, and evaluated zero-shot on **ARC-Easy, PIQA and HellaSwag**. The first step needs no training: the same three benchmarks on the published checkpoints, from the v2.0 hybrid to v2.3. Details in the [Roadmap](#roadmap).
+> **Next: FS²-SSA at about 200M parameters**, trained next to a dense control of the same size and evaluated zero-shot on **ARC-Easy, PIQA and HellaSwag**, as in this release: at 94M the gap of v2.3 to the dense control is 0.18 nats and about one point of accuracy. Details in the [Roadmap](#roadmap).
 
 ---
 
@@ -23,7 +23,7 @@ This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/
 
 2. **Part 2, Synthetic Scaling Proof (TinyStories):** a ~25.1M parameter model (12 layers, GPT-2 BPE) reaching a validation loss of **1.8163 ± 0.0139** (perplexity **6.15**), matching the loss regime of dense FP32 baselines on child-level narrative generation.
 
-3. **Part 3, Real-World Open-Domain Scaling (FineWeb-Edu, v1):** a **93,884,544** parameter model (16 layers, 9 heads, context 1024, vocabulary 50257) pretrained on ~655M tokens of educational web text, benchmarked head to head against an iso-parameter, compute-matched dense Transformer. Full report in [docs/v1.md](docs/v1.md).
+3. **Part 3, Real-World Open-Domain Scaling (FineWeb-Edu, v1):** a **93,884,544** parameter model (16 layers, 9 heads, context 1024, vocabulary 50257) pretrained on ~655M tokens of educational web text, benchmarked head to head against an iso-parameter dense Transformer trained on 7,500 steps, which v2.4.0 trains again on the same 10,000. Full report in [docs/v1.md](docs/v1.md).
 
 4. **Part 4, Linear-time inference (v2.0.0):** the same trained model, run as an exact recurrence with a fixed state per head, so that every new token costs the same however many came before. Full description in [docs/v2.md](docs/v2.md).
 
@@ -31,7 +31,9 @@ This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/
 
 6. **Part 6, Scheduled surrogate (v2.2.0):** the same $K=3$ model, trained with a surrogate gradient sized to the threshold of each neuron, which narrows as the learning rate decays. The forward pass does not change, and the model reaches the validation loss of the v2.0 hybrid. Its README is in [docs/v2.2.md](docs/v2.2.md).
 
-7. **Part 7, Spiking output head (v2.3.0, this release):** the input of the output head is coded into spikes as well, so every matrix product of the model has a spike operand. It costs 0.025 nats against v2.2, from the first thousand steps to the end of training and on three seeds, with no change in fluency.
+7. **Part 7, Spiking output head (v2.3.0):** the input of the output head is coded into spikes as well, so every matrix product of the model has a spike operand. It costs 0.025 nats against v2.2, from the first thousand steps to the end of training and on three seeds, with no change in fluency. Its README is in [docs/v2.3.md](docs/v2.3.md).
+
+8. **Part 8, Dense control and zero-shot benchmarks (v2.4.0, this release):** a dense control trained on the same 10,000 steps as v2.2 and v2.3, and the three models evaluated zero-shot on ARC-Easy, PIQA and HellaSwag. At equal training the spikes cost 0.16 to 0.18 nats, and about one point of accuracy.
 
 ---
 
@@ -39,58 +41,108 @@ This repository is the natural evolution of [FS-SSA](https://github.com/LRMTV94/
 
 <div align="center">
 
-| model | projection inputs | head input | decay | $K$ | validation loss | perplexity |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| Dense Transformer, Softmax + GELU (reference) | floats | floats | softmax | n/a | 3.5399 | 34.46 |
-| FS-SSA hybrid, v1 and v2.0 | floats | floats | fixed ladder | 2 | 3.6228 | 37.44 |
-| FS²-SSA v2.1 | spikes | floats | fixed ladder | 2 | 3.7542 | 42.70 |
-| FS²-SSA v2.1 | spikes | floats | data-dependent | 2 | 3.6991 | 40.41 |
-| FS²-SSA v2.1 | spikes | floats | data-dependent | 3 | 3.6573 | 38.75 |
-| FS²-SSA v2.2, scheduled surrogate | spikes | floats | data-dependent | 3 | 3.6145 | 37.13 |
-| **FS²-SSA v2.3, spiking output head** | **spikes** | **spikes** | **data-dependent** | **3** | **3.6395** | **38.07** |
+| model | projection inputs | head input | decay | $K$ | steps | validation loss | perplexity | Δ loss to the dense control |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Dense Transformer, Softmax + GELU (reference) | floats | floats | softmax | n/a | 10,000 | 3.4554 | 31.67 | *ref* |
+| Dense Transformer, the control of v1 | floats | floats | softmax | n/a | 7,500 | 3.5399 | 34.46 | +0.0845 |
+| FS-SSA hybrid, v1 and v2.0 | floats | floats | fixed ladder | 2 | 10,000 | 3.6228 | 37.44 | +0.1674 |
+| FS²-SSA v2.1 | spikes | floats | data-dependent | 3 | 10,000 | 3.6573 | 38.75 | +0.2018 |
+| FS²-SSA v2.2, scheduled surrogate | spikes | floats | data-dependent | 3 | 10,000 | 3.6145 | 37.13 | +0.1591 |
+| **FS²-SSA v2.3, spiking output head** | **spikes** | **spikes** | **data-dependent** | **3** | **10,000** | **3.6395** | **38.07** | **+0.1841** |
 
 </div>
 
-1. **Spiking the projection inputs costs 0.131 nats with the fixed ladder.** Coding the inputs of QKV, of the output projection and of the first MLP layer into spikes, instead of passing them as floats, moves the perplexity from 37.44 to 42.70.
+1. **At equal training the spikes cost 0.16 to 0.18 nats.** The dense control of v2.4.0 is trained on the recipe of v2.2 and v2.3: the same 10,000 steps, learning rate and data. It reaches **31.67** (3.4554, at step 9,500), and v2.2 is 0.159 nats behind it, v2.3 0.184. The tables up to v2.3 measured the gap against the control of v1, trained on a schedule of 7,500 steps, and found 0.075 and 0.100: at equal training the cost of the spikes is about twice that.
 
-2. **A decay computed from the spikes recovers 42% of that cost.** The data-dependent decay reaches 40.41 ($-0.0551$ nats) with 83,088 more parameters, 0.09% of the model.
+2. **The cost holds through training.** At equal steps v2.2 is behind the dense control by 0.183, 0.156 and 0.165 nats over steps 1,500 to 3,000, 4,000 to 6,000 and 8,000 to 10,000, and v2.3 by 0.204, 0.175 and 0.189 nats. Details under [A dense control on the same 10,000 steps](#a-dense-control-on-the-same-10000-steps).
 
-3. **A third timestep recovers another 32%.** At $K=3$ the model reaches **38.75** ($-0.0419$ nats): 74% of the cost of the spiking inputs is recovered. The remaining gap is **+0.0344 nats** (+1.31 perplexity points) to the hybrid and +0.1174 nats to the dense control.
+3. **On the benchmarks the order of the loss holds, by about one point.** Zero-shot, with the accuracy normalised by the length of the answer, the dense control is ahead of v2.2, and v2.2 of v2.3, on ARC-Easy, PIQA and HellaSwag: **42.20**, **41.53** and **40.83** on the mean of the three. Paired question by question, the gap between the dense control and v2.3 is resolved on the mean, $+1.38 \pm 0.81$ points, and the log-likelihood margins of the answers put the dense control ahead of both on ARC-Easy and HellaSwag. Details under [Zero-shot benchmarks](#zero-shot-benchmarks).
 
-4. **The gains hold at every stage of training.** At equal steps, averaged over steps 1,500 to 3,000, 4,000 to 6,000 and 8,000 to 10,000, the data-dependent decay is ahead of the fixed ladder by 0.078, 0.063 and 0.064 nats, and $K=3$ is ahead of $K=2$ by 0.060, 0.053 and 0.043 nats. Each run uses seed 1; for scale, an independent rerun of the hybrid landed 0.008 nats from the original (3.6147 against 3.6228).
+4. **Spikes on the projection inputs, and what v2.1 recovers.** Coding the inputs of QKV, of the output projection and of the first MLP layer into spikes costs 0.131 nats with the fixed ladder of the hybrid. A decay computed from the spikes and a third timestep recover 74% of that cost: v2.1 at $K=3$ reaches 38.75. Details in [docs/v2.1.md](docs/v2.1.md).
 
-5. **A surrogate sized to each threshold reaches the hybrid.** v2.2 trains the $K=3$ model of v2.1 from the same initial weights, on the same batches, with one change in the backward pass: the surrogate gradient takes a half-width proportional to the threshold of each neuron and an area of 1, and narrows from $1.5\,s$ to $1.0\,s$ along the cosine of the learning rate. The model reaches **37.13** (3.6145, $-0.0427$ nats from v2.1 at $K=3$), level with the hybrid: 37.44 in the original run, 37.14 in its rerun. The hybrid was trained with the old surrogate, so this does not show that spiking the inputs comes for free: the new surrogate might lower the hybrid as well.
+5. **A surrogate sized to each threshold reaches the hybrid.** v2.2 trains the model of v2.1 from the same initial weights, on the same batches, with a surrogate gradient whose half-width is proportional to the threshold of each neuron and narrows from $1.5\,s$ to $1.0\,s$ with the learning rate. It reaches 37.13, level with the hybrid; the hybrid was trained with the old surrogate, so this does not show that spiking the inputs comes for free. Details in [docs/v2.2.md](docs/v2.2.md).
 
-6. **The gain comes in two stages.** At equal steps v2.2 is ahead of v2.1 by 0.022 nats over steps 1,500 to 3,000, with the half-width still near $1.5\,s$, and by the same 0.022 nats over steps 4,000 to 6,000, as it narrows to $1.2\,s$; over steps 8,000 to 10,000, between $1.05\,s$ and $1.0\,s$, the gap grows to 0.039 nats. The first stage comes from the shape of the surrogate, before it narrows. The second comes with the end of the narrowing, which in this run is also the end of the learning rate decay, so the two cannot be told apart.
+6. **The spiking head costs 0.025 nats, at every step and on three seeds.** v2.3 codes the input of the output head into spikes, so the last dense layer, 28.95 million MACs per token, becomes additions. Trained from the weights and batches of v2.2, it reaches 38.07, 0.0250 nats behind, with an offset of about 0.02 nats from step 1,000 to the end; seeds 0 and 2, stopped at step 2,500, stay behind v2.2 at every evaluation after the first. Details under [The spiking output head](#the-spiking-output-head) and in [docs/v2.3.md](docs/v2.3.md).
 
-7. **Exact recurrence on the trained weights.** On the published $K=3$ checkpoint of v2.1 the parallel and the recurrent forms give identical logits in float64 and the same validation loss in float32 (3.69110 against 3.69117). v2.2 changes only the backward pass: its forward pass, and with it the recurrent form, is the one of v2.1. On the published checkpoint of v2.3, whose head codes each token on its own, the two forms again give identical logits in float64 and the same validation loss in float32 (3.66596 against 3.66604).
-
-8. **The two probes lost in v2.1 come back, one of them for the wrong reason.** In v2.1 the singular agreement across *"along with the students"* and the binding of Alvarez to volcanoes failed, where v1 passed both. v2.2 prefers `was` by 1.09 nats where v2.1 preferred `were` by 1.25, and the bias towards the plural behind that failure drops from 2.65 to 0.89 nats. It answers `volcanoes` again, but the four orderings of the prompt show that it picks the first object named and the word itself, not the object of the name asked. Details under [Qualitative probing](#qualitative-probing).
-
-9. **Fluency does not change.** Over 30 prompts with 5 continuations of 250 tokens each, scored with GPT-2 large, the paired differences between v2.2 and v2.1 are all compatible with zero: share of repeated 4-grams $-0.013 \pm 0.025$, reference loss $+0.057 \pm 0.086$ nats, PMI with the prompt $+0.006 \pm 0.010$ nats per token (95% intervals over prompts). The single photosynthesis completion of v2.2 that drifts to bees is a bad draw.
-
-10. **The output head reads spikes too, for 0.025 nats.** v2.3 codes the final RMSNorm into signed spikes before the head, as every other read, so the last dense layer, 28.95 million MACs per token, becomes additions, and every matrix product of the model has a spike operand. Trained from the same initial weights as v2.2, apart from the 10,944 parameters of the new code, and on the same batches, it reaches **38.07** (3.6395, **+0.0250 nats**), still 0.0177 nats below v2.1 at $K=3$, whose head read floats.
-
-11. **The cost is a constant offset.** At equal steps v2.3 is behind v2.2 by 0.022, 0.019 and 0.024 nats over steps 1,500 to 3,000, 4,000 to 6,000 and 8,000 to 10,000, and from step 7,500 to their best the two runs gain about the same, 0.048 and 0.050 nats: the head costs about 0.02 nats from the first thousand steps on, and the narrowing of the surrogate works as it does in v2.2.
-
-12. **The cost is not the seed.** Seeds 0 and 2 of v2.3, on the same schedule and stopped at step 2,500, stay above v2.2 at every evaluation: averaged over steps 1,500 to 2,500 the three seeds are 0.017, 0.023 and 0.039 nats behind it, with a spread of 0.011 nats between them.
-
-13. **Fluency does not change, and neither do the probes.** Two runs of the paired fluency test, the first finds fewer loops in v2.3 (share of repeated 4-grams $-0.024 \pm 0.018$) and the second does not ($+0.006 \pm 0.036$); the other differences are compatible with zero in both runs, and at equal share of repeated 4-grams the reference loss differs by $-0.017 \pm 0.045$ nats.
-
+7. **Exact recurrence, and fluency unchanged.** On the published checkpoints of v2.1 and v2.3 the parallel and the recurrent forms give identical logits in float64. The paired fluency tests, 30 prompts with 5 continuations each scored with GPT-2 large, find no difference between v2.2 and v2.1, and none between v2.3 and v2.2 that holds from one run to the next.
 
 <p align="center">
-  <img src="v2.3.0/figures/validation.png" alt="Validation loss of the dense control, of the v2.0 hybrid, of v2.1 at K=3, of v2.2 and of v2.3, one point per evaluation, steps 1,000 to 10,000" width="90%">
-</p>
-
-<p align="center">
-  <img src="v2.3.0/figures/zoom.png" alt="Validation loss of the v2.0 hybrid, of v2.1 at K=3, of v2.2 and of v2.3 at their last six evaluations, steps 8,750 to 10,000" width="80%">
+  <img src="v2.4.0/figures/validation.png" alt="Validation loss of the dense control on 10,000 steps, of the dense control of v1 on 7,500 steps, of the v2.0 hybrid, of v2.1 at K=3, of v2.2 and of v2.3, one point per evaluation, steps 1,000 to 10,000" width="90%">
 </p>
 
 ---
 
-## What is new in v2.3
+## A dense control on the same 10,000 steps
 
-### A spiking output head
+Up to v2.3 every table measured the gap to the dense control of v1: Softmax + GELU, the same 16 layers, width, heads and context, trained on a schedule of 7,500 steps, 491M tokens against the 655M of the spiking runs. The control of v2.4.0 is trained by `v2.4.0/model.py`, the `model.py` of v2.3.0 with this run as the one entry of `CONFIGS`: the same 10,000 steps of 64 sequences of 1024 tokens, the same learning rate and schedule, the same data. Its batches are not those of v2.2 and v2.3, since the dense model consumes the random state of the initialisation differently; at these gaps the order of the batches counts little, as the three seeds of v2.3 differ by 0.011 nats.
+
+<div align="center">
+
+| validation loss | v2.2 minus the dense control | v2.3 minus the dense control |
+| :--- | :---: | :---: |
+| steps 1,500 to 3,000 | +0.183 | +0.204 |
+| steps 4,000 to 6,000 | +0.156 | +0.175 |
+| steps 8,000 to 10,000 | +0.165 | +0.189 |
+| best against best | +0.159 | +0.184 |
+
+</div>
+
+<p align="center">
+  <img src="v2.4.0/figures/difference.png" alt="Validation loss of v2.2 and of v2.3 minus the dense control at equal steps, one point per evaluation, above the learning rate of the three runs and the shorter schedule of the control of v1" width="90%">
+</p>
+
+The dense control has its best at step 9,500, 3.4554, and ends at 3.4705: from one evaluation to the next its validation estimate moves by up to 0.015 nats. Its checkpoint on Hugging Face, `dense/model.pt`, is the one of step 9,500, as for every run the checkpoint of its best evaluation.
+
+The control of v1 was not saturated. [docs/v1.md](docs/v1.md) stopped it at step 7,500 because its validation loss had flattened, and read the flattening as saturation; its history records a schedule of 7,500 steps, so its learning rate had reached the minimum there. On the 10,000-step schedule the same model is at 3.5459 at step 7,500, with its learning rate still decaying, and goes on to 3.4554 at step 9,500. The gaps of v1, +0.0829 nats for the hybrid, were measured against a control with a quarter fewer tokens; against the new control the hybrid is 0.1674 nats behind.
+
+---
+
+## Zero-shot benchmarks
+
+`v2.4.0/zero_shot.py` evaluates the dense control, v2.2 and v2.3 through the LM Evaluation Harness of EleutherAI (lm-eval), zero shot: ARC-Easy on its test split of 2,376 questions, PIQA and HellaSwag on their validation splits of 1,838 and 10,042 questions. Every choice is scored by its log-likelihood after the question, one sequence per forward pass, about 53,000 requests per model. `acc` takes the choice with the highest log-likelihood; `acc_norm` divides it by the length of the choice in characters first, so that a long answer is not penalised for its length, and is the accuracy usually reported for HellaSwag.
+
+<div align="center">
+
+| acc_norm, % | validation loss | ARC-Easy | PIQA | HellaSwag | mean of the three |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| chance | | 25.0 | 50.0 | 25.0 | 33.3 |
+| dense control | 3.4554 | **40.19** | **58.43** | **27.98** | **42.20** |
+| v2.2, float head | 3.6145 | 39.73 | 57.45 | 27.39 | 41.53 |
+| v2.3, spiking head | 3.6395 | 38.51 | 56.96 | 27.01 | 40.83 |
+
+| acc, % | ARC-Easy | PIQA | HellaSwag | mean of the three |
+| :--- | :---: | :---: | :---: | :---: |
+| dense control | 44.70 | 58.49 | 27.16 | 43.45 |
+| v2.2, float head | 43.94 | 58.60 | 26.76 | 43.10 |
+| v2.3, spiking head | 42.72 | 58.00 | 26.88 | 42.53 |
+
+</div>
+
+The 95% intervals of a single accuracy are about $\pm 2.0$ points on ARC-Easy, $\pm 2.3$ on PIQA and $\pm 0.9$ on HellaSwag. Since every model answers the same questions, the pairs are compared question by question:
+
+<div align="center">
+
+| paired, acc_norm in points | ARC-Easy | PIQA | HellaSwag | mean of the three |
+| :--- | :---: | :---: | :---: | :---: |
+| dense control minus v2.2 | $+0.46 \pm 1.56$ | $+0.98 \pm 1.75$ | $+0.59 \pm 0.59$ | $+0.68 \pm 0.80$ |
+| dense control minus v2.3 | $\mathbf{+1.68 \pm 1.58}$ | $+1.47 \pm 1.74$ | $\mathbf{+0.98 \pm 0.60}$ | $\mathbf{+1.38 \pm 0.81}$ |
+| v2.2 minus v2.3 | $+1.22 \pm 1.55$ | $+0.49 \pm 1.71$ | $+0.39 \pm 0.56$ | $+0.70 \pm 0.79$ |
+
+| paired, margin in nats | ARC-Easy | PIQA | HellaSwag |
+| :--- | :---: | :---: | :---: |
+| dense control minus v2.2 | $\mathbf{+0.112 \pm 0.092}$ | $+0.058 \pm 0.161$ | $\mathbf{+0.932 \pm 0.143}$ |
+| dense control minus v2.3 | $\mathbf{+0.203 \pm 0.095}$ | $+0.105 \pm 0.179$ | $\mathbf{+1.003 \pm 0.144}$ |
+| v2.2 minus v2.3 | $+0.091 \pm 0.092$ | $+0.047 \pm 0.177$ | $+0.072 \pm 0.119$ |
+
+</div>
+
+With `acc_norm` the order of the validation loss holds on every task: the dense control first, then v2.2, then v2.3, about one point apart. With `acc` it holds on ARC-Easy, while on PIQA and HellaSwag the three models are within 0.6 points. Paired question by question, the gap between the dense control and v2.3 is resolved on ARC-Easy, on HellaSwag and on the mean of the three; the other gaps stay inside their intervals, the one between v2.2 and v2.3 included. The margin of a question, the log-likelihood of the right answer minus that of the best wrong one, moves on every question, where an accuracy moves only when a margin changes sign: on ARC-Easy and HellaSwag it puts the dense control ahead of both spiking models, by about one nat per question on HellaSwag, whose answers are whole sentences. PIQA separates none of the three. All three are close to chance on HellaSwag, 27 to 28% against 25%.
+
+At this scale the 0.16 to 0.18 nats of the spikes are worth about one point of accuracy, and the 0.025 nats of the spiking head stay inside the intervals. Every question of every model, with the log-likelihood of every choice, is in `v2.4.0/results/zero_shot`, together with the report printed by the script.
+
+---
+
+## The spiking output head
 
 In v2.2 the final RMSNorm reached the output head as floats, and the head, $W_{head}$ tied to the embedding, cost $576 \times 50{,}257 = 28.95$ million MACs per token: 31% of the multiply-accumulates of the projections and the head together, the largest floating-point cost left. v2.3 codes the RMSNorm into signed spikes before the head, as every other read:
 
@@ -110,220 +162,7 @@ In v2.2 the final RMSNorm reached the output head as floats, and the head, $W_{h
   <img src="v2.3.0/figures/difference.png" alt="Perplexity of v2.3 minus v2.2 at equal steps, one point per evaluation, above the surrogate half-width both runs were trained with" width="90%">
 </p>
 
-<div align="center">
-
-| step | half-width | v2.2 | v2.3 | difference, nats | difference, perplexity |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| 1,000 | $1.50\,s$ | 4.7084 | 4.7382 | +0.0298 | +3.35 |
-| 2,000 | $1.47\,s$ | 4.2613 | 4.2837 | +0.0225 | +1.61 |
-| 3,000 | $1.42\,s$ | 4.0714 | 4.0915 | +0.0201 | +1.19 |
-| 5,000 | $1.27\,s$ | 3.8590 | 3.8758 | +0.0168 | +0.80 |
-| 7,500 | $1.08\,s$ | 3.6648 | 3.6879 | +0.0232 | +0.91 |
-| 10,000 | $1.00\,s$ | 3.6145 | 3.6395 | +0.0250 | +0.94 |
-
-</div>
-
-In nats the cost settles near 0.02 by step 1,000 and stays there to the end: 0.022, 0.019 and 0.024 nats over the three windows. From step 7,500 to its best v2.3 gains 0.048 nats and v2.2 0.050: the narrowing of the surrogate works with the spiking head as without it. Against v2.1 at $K=3$, which had the fixed surrogate and the head in floats, v2.3 is level up to step 6,000 (+0.000 and $-0.003$ nats over the first two windows) and ahead by 0.015 nats over the last one.
-
-What floating point keeps is elementwise: the residual additions, the RMSNorms, the channel gains, the decay and the normalisation of the attention state, the softplus and exponential of the gate. The multiplications among them, about 813,000 per token, almost three quarters of them in the decay of the state, are 0.87% of the operations of the matrix products: [Spikes and floating point, per token](#spikes-and-floating-point-per-token) counts them one by one. How much energy the head saves depends on how many spikes reach $W_{head}$, which is not measured yet.
-
-### The recurrent form
-
-The head codes each token on its own, so the recurrent form of v2.3 is the one of v2.2 with the head code at every step. `v2.3.0/recurrent_check.py` runs the checks of v2.1 on the published checkpoint, on the validation split rebuilt from the FineWeb-Edu stream:
-
-<div align="center">
-
-| check on the v2.3 checkpoint | result |
-| :--- | :--- |
-| logits, float64, 2 x 1024 tokens | **identical** in the two forms, same argmax on every token |
-| logits, float32, 2 x 1024 tokens | same argmax on **85.4%** of the tokens |
-| validation loss, float32, 10 batches | **3.66596** parallel, **3.66604** recurrent |
-| generation, 256 tokens on a GPU | 39.7 s parallel, 38.0 s recurrent |
-
-</div>
-
-As in v2.1, the logits are identical in float64, and the spike read of the head absorbs any rounding difference left before it. In float32 the top prediction moves on about one token in seven, against one in six in v2.1, and the loss does not move. For the same reason the two forms sample different continuations from the same seed: once a rounding changes one token, the rest of the text follows it. The loss of this check averages 10 batches, fewer than the evaluations of training, so it is not the 3.6395 of the run.
-
-### Three seeds
-
-With one seed per run, a gap of 0.025 nats could come from the seed. Seeds 0 and 2 of v2.3 were trained on the same 10,000-step schedule and stopped at step 2,500, where the cost of the head in the full run is already the one it ends with: 0.022 nats over steps 1,500 to 3,000, against 0.024 over steps 8,000 to 10,000.
-
-<p align="center">
-  <img src="v2.3.0/figures/seeds.png" alt="Validation loss of v2.3 minus v2.2 at equal steps, steps 1,000 to 2,500, for seeds 0, 1 and 2 of v2.3 against seed 1 of v2.2" width="80%">
-</p>
-
-<div align="center">
-
-| step | v2.3, seed 0 | v2.3, seed 1 | v2.3, seed 2 | v2.2, seed 1 |
-| :---: | :---: | :---: | :---: | :---: |
-| 1,000 | 4.7438 | 4.7382 | 4.7301 | 4.7084 |
-| 1,500 | 4.4698 | 4.4725 | 4.4834 | 4.4472 |
-| 2,000 | 4.2692 | 4.2837 | 4.3160 | 4.2613 |
-| 2,500 | 4.1752 | 4.1696 | 4.1707 | 4.1519 |
-
-</div>
-
-Every seed stays above v2.2 at every evaluation after the first. Averaged over steps 1,500 to 2,500 the three seeds are 0.017, 0.023 and 0.039 nats behind v2.2, with a spread of 0.011 nats between them: the cost of the head is larger than the spread of the seeds. Single evaluations move more than their average: at step 2,000 seed 2 is 0.047 nats behind seed 0, at step 2,500 the three are within 0.006. v2.2 has a single seed, so the spread of its own seeds is not known.
-
-### Fluency test, twice
-
-`v2.3.0/fluency.py` is the test of v2.2 with v2.3 against v2.2: the same 30 prompts, 5 continuations of 250 tokens per prompt and model with the same random draws, scored with GPT-2 large. It ran twice:
-
-<div align="center">
-
-| score | run 1 | run 2 |
-| :--- | :---: | :---: |
-| rep-4, share of repeated 4-grams | $-0.024 \pm 0.018$ | $+0.006 \pm 0.036$ |
-| reference loss, nats per token | $+0.070 \pm 0.086$ | $-0.035 \pm 0.115$ |
-| PMI with the prompt, nats per token | $+0.002 \pm 0.010$ | $-0.000 \pm 0.009$ |
-
-</div>
-
-The two runs drew different continuations with the same seeds. On a GPU the generation is not reproducible bit for bit across sessions, and in a spiking network a rounding that moves an input across a threshold changes a spike, then a token, then the rest of the continuation. The human continuations of the validation prompts, which do not depend on the sampling, score the same in both runs: rep-4 0.017, PMI 0.227 nats per token. Run 1 found fewer loops in v2.3, run 2 does not: that difference is noise.
-
-<p align="center">
-  <img src="v2.3.0/figures/fluency.png" alt="Reference loss under GPT-2 large against rep-4 for every continuation of the second run of the fluency test, v2.3, v2.2 and the human continuations" width="80%">
-</p>
-
-The reference loss follows the loops: over the 300 continuations of the models in run 2 its correlation with rep-4 is $-0.81$, since a loop is easy to predict. At equal rep-4 the reference loss of v2.3 differs from that of v2.2 by $-0.017 \pm 0.045$ nats, and over the 132 pairs in which neither continuation loops the three differences stay compatible with zero. GPT-2 large finds no difference between the two heads within 0.05 nats.
-
-Every model was read from Hugging Face. Google Drive, where `model.py` writes the checkpoints, could not be mounted in the runtime of the tests (a credential error of Colab), so the scripts of v2.3.0 load every model from Hugging Face, and `fluency.py` rebuilds its validation documents from the FineWeb-Edu stream, as `model.py` builds the validation split. The continuations of run 2, the blind reading with its key and the reports of both runs are in `v2.3.0/results/fluency`; the continuations of run 1 were lost when the runtime disconnected.
-
----
-
-## What is new in v2.2
-
-### A surrogate gradient sized to each threshold
-
-The forward pass of an FS neuron is a step: it fires when its potential crosses a threshold. The backward pass replaces the step with a triangle, the surrogate gradient. In v2.1 the triangle had one half-width for every neuron, 1.1 in units of the potential, and a peak of 1. The thresholds it serves are not alike: at initialisation the top threshold $s$ is 0.75 for the reads and the Q/K/V codes and 0.27 for the MLP neuron, and every channel then learns its own. A half-width of 1.1 is $1.5\,s$ for a read and $4\,s$ for the MLP neuron.
-
-v2.2 changes the triangle and nothing else:
-
-<div align="center">
-
-| surrogate | v2.1 | v2.2 |
-| :--- | :--- | :--- |
-| half-width | 1.1, the same for every neuron | $c \cdot s$, with $s$ the top threshold of each channel, learned; no gradient flows through the width |
-| peak | 1 | $1/(c \cdot s)$: the area stays 1, as for the step it stands for |
-| $c$ during training | no schedule | 1.5 through the warmup, then down to 1.0 along the cosine of the learning rate |
-
-</div>
-
-With the area fixed, narrowing the triangle changes the shape of the gradient and not its size. $c = 1$ is the narrowest width at which the backward pass of a code never exceeds the slope of its forward pass: at $c = 0.75$ it would be 1.2 times steeper, at $c = 0.5$ 1.75 times, and the chain of resets would amplify the excess. Both choices have precedents: learning with surrogate gradients is robust to the shape of the surrogate and sensitive to its scale (Zenke & Vogels, 2021), and the sharpness of a surrogate can change during training (Li et al., 2021).
-
-The forward pass, the 94,750,992 parameters and the recurrent form are those of the $K=3$ model of v2.1, so a v2.2 checkpoint loads in the classes of v2.1 as it is. The run starts from the same initial weights as the $K=3$ run of v2.1 and reads the same batches: their difference at equal steps is the effect of the surrogate.
-
-<p align="center">
-  <img src="v2.2.0/figures/difference.png" alt="Perplexity of v2.2 minus v2.1 at equal steps, one point per evaluation, above the surrogate half-width of v2.2 along training" width="90%">
-</p>
-
-<div align="center">
-
-| step | half-width | v2.1, $K=3$ | v2.2 | difference, nats | difference, perplexity |
-| :---: | :---: | :---: | :---: | :---: | :---: |
-| 1,000 | $1.50\,s$ | 4.7282 | 4.7084 | $-0.0198$ | $-2.22$ |
-| 2,000 | $1.47\,s$ | 4.2853 | 4.2613 | $-0.0240$ | $-1.72$ |
-| 3,000 | $1.42\,s$ | 4.0902 | 4.0714 | $-0.0188$ | $-1.11$ |
-| 5,000 | $1.27\,s$ | 3.8806 | 3.8590 | $-0.0216$ | $-1.04$ |
-| 7,500 | $1.08\,s$ | 3.6989 | 3.6648 | $-0.0341$ | $-1.36$ |
-| 10,000 | $1.00\,s$ | 3.6579 | 3.6145 | $-0.0433$ | $-1.64$ |
-
-</div>
-
-In nats the gap holds near 0.02 for two thirds of the run and doubles in the last fifth. In perplexity it shrinks at first, because the same gap in nats is worth more points while the perplexity is high. From step 7,500 to its best, v2.2 gains 0.050 nats and v2.1 0.042. There is one seed per run: the growth of the second stage, 0.017 nats, is about twice the 0.008 nats by which the rerun of the hybrid moved.
-
-### Fluency test
-
-On the published prompts one completion of v2.2 leaves photosynthesis for bees after three words, where v2.1 stayed on topic. One completion says more about the seed than about the model, so `v2.2.0/fluency.py` samples 30 prompts, 5 continuations of 250 tokens per prompt and model, with the same random draws for both models, and scores every continuation with GPT-2 large, which shares the tokenizer:
-
-<div align="center">
-
-| score | what it measures | v2.2 minus v2.1 |
-| :--- | :--- | :---: |
-| rep-4 | share of repeated 4-grams in the continuation: the loops | $-0.013 \pm 0.025$ |
-| reference loss | loss of the continuation under GPT-2 large, given the prompt, in nats per token | $+0.057 \pm 0.086$ |
-| PMI | loss without the prompt minus loss with it: how much the continuation still depends on the prompt | $+0.006 \pm 0.010$ |
-
-</div>
-
-The prompts are the three of `generate.py`, twelve written by hand on other topics and fifteen beginnings of validation documents. The intervals are at 95%, from the spread between prompts, since the five continuations of one prompt are not independent. None of the differences is distinguishable from zero: the photosynthesis completion was a bad draw. The human continuations of the validation documents mark a limit both models share: a PMI of about 0.23 nats per token against about 0.13, and a rep-4 of about 0.017 against 0.08.
-
-The script writes every continuation with its scores, and a copy with the two models in random order under the letters A and B, for a blind reading.
-
----
-
-## What is new in v2.1
-
-### Spiking residual highway
-
-In v2.0 three products had a spike operand ($q k^\top$, the attention weights with $v$, the second MLP layer), while the other three projections received floats and stayed dense MACs. v2.1 codes every one of those inputs into signed spikes:
-
-<div align="center">
-
-| projection | input in v2.0 | input in v2.1 |
-| :--- | :--- | :--- |
-| $W_{qkv}$ | RMS-normed residual, floats | `fs_in`: signed FS code of the RMS-normed residual |
-| $W_{proj}$ | attention output, floats | `fs_o`: signed FS code of the RMS-normed attention output |
-| $W_{up}$ | RMS-normed residual, floats | `mlp.fs_in`: signed FS code of the RMS-normed residual |
-| $W_{down}$ | spikes of the MLP FS neuron | unchanged |
-
-</div>
-
-The residual stream stays a real-valued accumulator, a membrane shortcut: $x \leftarrow x + \text{attn}(x)$, then $x \leftarrow x + \text{mlp}(x)$. Each branch normalises and codes its own input, so there is no norm outside the branches. In v2.1 and v2.2 the output head still reads floats.
-
-The reads share the thresholds of the Q/K/V codes, $s = 0.75\,\sigma$ of the RMS-normed input; the MLP neuron sits at $1.0\,\sigma$ of the pre-activation of the first MLP layer. Both spreads are measured at initialisation.
-
-### Data-dependent decay
-
-The fixed ladder gives each head one $\gamma$. In v2.1 each head decays with its own $\gamma$ at every token:
-
-$$\gamma_{t,h} = \exp\big(-\text{softplus}(w_h \cdot s_t + b_h + \beta_h)\big)$$
-
-where $s_t$ is the spike input of $W_{qkv}$, so the gate is itself an all-AC product with $576 \times 9$ weights per block. $\beta_h$ holds the fixed ladder, $\text{softplus}(\beta_h) = -\ln \gamma_h$, as a buffer; $w_h$ and $b_h$ start at zero. At initialisation every token decays with the ladder, so the model starts as the one with the fixed ladder, and weight decay pulls the gate back towards the ladder rather than towards short windows. A scalar decay per head computed from the input, with a softplus inside an exponential, is also the form of the selective state spaces of Mamba-2.
-
-Training uses the parallel form, with $c_t = \sum_{l \le t} \ln \gamma_l$:
-
-$$o_t = \frac{\text{scale}}{Z_t} \sum_{j \le t} D_{tj} \, (q_t \cdot k_j) \, v_j, \qquad D_{tj} = \prod_{j < l \le t} \gamma_l = e^{c_t - c_j}, \qquad Z_t = \sum_{j \le t} D_{tj}$$
-
-Inference uses the recurrent form, with the same state as v2.0:
-
-$$S_t = \gamma_t \, S_{t-1} + k_t^\top v_t, \qquad Z_t = \gamma_t \, Z_{t-1} + 1, \qquad o_t = \text{scale} \cdot \frac{q_t S_t}{Z_t}$$
-
-The state is still $64 \times 64$ per head plus one normaliser, so every new token costs the same however many came before. `v2.1.0/recurrent_check.py` runs the checks of v2.0 on the published $K=3$ checkpoint:
-
-<div align="center">
-
-| check on the $K=3$ checkpoint | result |
-| :--- | :--- |
-| logits, float64, 2 x 1024 tokens | **identical** in the two forms, same argmax on every token |
-| logits, float32, 2 x 1024 tokens | same argmax on **83.6%** of the tokens |
-| validation loss, float32, 10 batches | **3.69110** parallel, **3.69117** recurrent |
-| generation, 256 tokens on a GPU | 38.0 s parallel, 36.8 s recurrent |
-
-</div>
-
-In float64 the logits are not just close but identical: every attention output goes through a spike read before $W_{proj}$, and the read absorbs the rounding differences between the two forms. In float32 a spike whose input sits within rounding distance of its threshold can still fire in one form and not in the other. v2.1 has more of those thresholds than v2.0, seven coding sites per block instead of four and three steps per code, so the top prediction moves on about one token in six instead of one in twenty. The loss does not move.
-
-The price is paid in training memory: the decay matrix is no longer one per head but one per sequence, 341 MB of activations per sequence and block at 1024 tokens instead of 232 MB. The runs use 8 sequences per forward pass and 8 accumulation steps, the same 65,536 tokens per step as before.
-
-### Three timesteps, K = 3
-
-The $K=3$ run gives three timesteps to every FS neuron (the reads, the Q/K/V codes, the MLP neuron): one K for the whole model, with the same threshold scales as the $K=2$ runs. With the thresholds $T_k = s \cdot 2^{-k}$, the third step halves the smallest step of the code and widens its window from $1.5\,s$ to $1.75\,s$.
-
-<div align="center">
-
-| code on a unit Gaussian input | $K=2$ | $K=3$ |
-| :--- | :---: | :---: |
-| signed code at $s = 0.75\,\sigma$ (reads, Q, K): window | $1.125\,\sigma$ | $1.313\,\sigma$ |
-| saturated inputs | 26.1% | 18.9% |
-| correlation with the input | 0.964 | 0.977 |
-| spikes per value | 0.97 | 1.51 |
-| MLP neuron at $s = 1.0\,\sigma$: correlation with GELU | 0.954 | 0.978 |
-| spikes per value | 0.37 | 0.61 |
-
-</div>
-
-The third step costs one more timestep of latency and about 1.6 times the spikes per value.
+The cost is an offset of about 0.02 nats from the first thousand steps to the end of training: 0.022, 0.019 and 0.024 nats over steps 1,500 to 3,000, 4,000 to 6,000 and 8,000 to 10,000, and from step 7,500 to their best the two runs gain about the same, 0.048 and 0.050 nats. On the published checkpoint the recurrent form gives the logits of the parallel one in float64 and the same validation loss in float32, 3.66596 against 3.66604; seeds 0 and 2 stay behind v2.2 at every evaluation after the first, 0.017 to 0.039 nats over steps 1,500 to 2,500; and two runs of the paired fluency test find no difference that holds from one run to the next. The tables of these checks are in [docs/v2.3.md](docs/v2.3.md).
 
 ---
 
@@ -388,7 +227,7 @@ The matrix products are the four projections of each block (63,700,992), the dec
 
 Almost three quarters of the multiplications left are the decay of the state, which the decay as a shift of the [roadmap](#roadmap) would turn into shifts and subtractions; a fifth are the RMSNorms, the target of the spiking RMSNorm. Without the gains and the norm weights, which are constants, the multiplications are 0.76% of the operations of the matrix products.
 
-The additions are counted as the operations they replace. The additions actually performed are that count times the spikes of each input: on a unit Gaussian input a signed code at $K=3$ fires 1.51 spikes per value and the MLP neuron 0.61 ([Three timesteps, K = 3](#three-timesteps-k--3)), which would make about 121 million additions where a dense model computes 92.7 million multiply-accumulates in the projections, the gates and the head. An addition costs less than a multiply-accumulate, so the saving depends on that ratio and on the spikes of the trained model, which are not counted yet.
+The additions are counted as the operations they replace. The additions actually performed are that count times the spikes of each input: on a unit Gaussian input a signed code at $K=3$ fires 1.51 spikes per value and the MLP neuron 0.61 ([Three timesteps, K = 3](docs/v2.1.md#three-timesteps-k--3)), which would make about 121 million additions where a dense model computes 92.7 million multiply-accumulates in the projections, the gates and the head. An addition costs less than a multiply-accumulate, so the saving depends on that ratio and on the spikes of the trained model, which are not counted yet.
 
 ---
 
@@ -398,21 +237,24 @@ The additions are counted as the operations they replace. The additions actually
 
 | model | name in `v2.1.0/results/history` | parameters | best iter | val loss | perplexity | Δ loss | Δ PPL |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| Dense, Softmax + GELU | `softmax + gelu`, in `v2.0.0/results/history` | iso-parameter | 7500 | 3.5399 | 34.46 | *ref* | *ref* |
-| Hybrid, v1 and v2.0 | `ssa K=2 +/- L + alpha_app + gamma_var`, in `v2.0.0/results/history` | 93,884,544 | 9750 | 3.6228 | 37.44 | +0.0829 | +2.98 |
-| v2.1, fixed ladder, $K=2$ | `ssa K=2 +/- L g var alpha app` | 94,253,184 | 9750 | 3.7542 | 42.70 | +0.2143 | +8.24 |
-| v2.1, data-dependent decay, $K=2$ | `ssa K=2 +/- L g var alpha app data decay` | 94,336,272 | 10000 | 3.6991 | 40.41 | +0.1592 | +5.95 |
-| v2.1, data-dependent decay, $K=3$ | `ssa K=3 +/- L g var alpha app data decay` | 94,750,992 | 9500 | 3.6573 | 38.75 | +0.1174 | +4.29 |
-| v2.2, scheduled surrogate, $K=3$ | `ssa K=3 +/- L g var alpha app data decay width sched`, in `v2.2.0/results/history` | 94,750,992 | 10000 | 3.6145 | 37.13 | +0.0746 | +2.67 |
-| **v2.3, spiking output head, $K=3$** | `ssa K=3 +/- L g var alpha app data decay width sched spike head`, in `v2.3.0/results/history` | 94,761,936 | 10000 | **3.6395** | **38.07** | **+0.0996** | **+3.61** |
+| Dense, Softmax + GELU, 10,000 steps | `softmax + gelu 10k`, in `v2.4.0/results/history` | 93,340,800 | 9500 | 3.4554 | 31.67 | *ref* | *ref* |
+| Dense, Softmax + GELU, 7,500 steps | `softmax + gelu`, in `v2.0.0/results/history` | 93,340,800 | 7500 | 3.5399 | 34.46 | +0.0845 | +2.79 |
+| Hybrid, v1 and v2.0 | `ssa K=2 +/- L + alpha_app + gamma_var`, in `v2.0.0/results/history` | 93,884,544 | 9750 | 3.6228 | 37.44 | +0.1674 | +5.77 |
+| v2.1, fixed ladder, $K=2$ | `ssa K=2 +/- L g var alpha app` | 94,253,184 | 9750 | 3.7542 | 42.70 | +0.2988 | +11.03 |
+| v2.1, data-dependent decay, $K=2$ | `ssa K=2 +/- L g var alpha app data decay` | 94,336,272 | 10000 | 3.6991 | 40.41 | +0.2437 | +8.74 |
+| v2.1, data-dependent decay, $K=3$ | `ssa K=3 +/- L g var alpha app data decay` | 94,750,992 | 9500 | 3.6573 | 38.75 | +0.2018 | +7.08 |
+| v2.2, scheduled surrogate, $K=3$ | `ssa K=3 +/- L g var alpha app data decay width sched`, in `v2.2.0/results/history` | 94,750,992 | 10000 | 3.6145 | 37.13 | +0.1591 | +5.46 |
+| **v2.3, spiking output head, $K=3$** | `ssa K=3 +/- L g var alpha app data decay width sched spike head`, in `v2.3.0/results/history` | 94,761,936 | 10000 | **3.6395** | **38.07** | **+0.1841** | **+6.40** |
 
 </div>
 
 All the v2.1 runs share one setting: 10,000 steps of 64 sequences of 1024 tokens, AdamW with $\beta = (0.9, 0.999)$ and weight decay 0.15, peak learning rate $10^{-3}$ after 500 warmup steps with a cosine down to $10^{-4}$, gradient clipping at 1.0, surrogate half-width 1.1, seed 1. The three runs are the three entries of `CONFIGS` in `v2.1.0/model.py`, under the names above.
 
-The v2.2 run keeps that setting and replaces the fixed half-width 1.1 with the schedule of [What is new in v2.2](#what-is-new-in-v22). It is the one entry of `CONFIGS` in `v2.2.0/model.py`.
+The v2.2 run keeps that setting and replaces the fixed half-width 1.1 with the schedule of [What is new in v2.2](docs/v2.2.md#what-is-new-in-v22). It is the one entry of `CONFIGS` in `v2.2.0/model.py`.
 
-The v2.3 run keeps the setting of v2.2 and codes the input of the output head into spikes, as in [What is new in v2.3](#what-is-new-in-v23). It is the one entry of `CONFIGS` in `v2.3.0/model.py`; seeds 0 and 2 ran on the same schedule and stopped at step 2,500, with their histories in `v2.3.0/results/stability_seed`.
+The v2.3 run keeps the setting of v2.2 and codes the input of the output head into spikes, as in [The spiking output head](#the-spiking-output-head). It is the one entry of `CONFIGS` in `v2.3.0/model.py`; seeds 0 and 2 ran on the same schedule and stopped at step 2,500, with their histories in `v2.3.0/results/stability_seed`.
+
+The dense control of v2.4.0 keeps the setting of v2.2 and v2.3, apart from what only a spiking model uses, the surrogate and its schedule. It is the one entry of `CONFIGS` in `v2.4.0/model.py`. The control of v1 ran on a schedule of 7,500 steps.
 
 The v1 ablation (sign, static decay, channel gains, per-head ladder), the convergence analysis and the qualitative probes are in [docs/v1.md](docs/v1.md).
 
@@ -436,73 +278,32 @@ The v1 ablation (sign, static decay, channel gains, per-head ladder), the conver
 
 </div>
 
-Outputs of `v2.3.0/generate.py` on the v2.3 checkpoint, seed 1234, one completion per prompt: the prose set is sampled at temperature 0.8 with top-k 200, every other set is greedy. The v2.2 column repeats the verdicts of [docs/v2.2.md](docs/v2.2.md), the v2.1 column those of [docs/v2.1.md](docs/v2.1.md), the v1 column the table of [docs/v1.md](docs/v1.md). In greedy decoding v2.3 answers `glaciers` for Alvarez while its margin still prefers `volcanoes` by 1.02 nats: its first token after *"studied"* is *"the"*, and the completion goes on from there. [docs/v1.md](docs/v1.md) put the failure of factual induction down to the lack of data-dependent decay gates: with the gates of v2.1, v2.2 and v2.3 it still fails, and v2.2 and v2.3 copy the first answer of the prompt. Single completions are probes, not a benchmark; the fluency test measures what one completion cannot.
-
-### Log-prob margins for the probes
-
-The margin $\log p(\text{right}) - \log p(\text{wrong})$, in nats and computed in float64, measures the agreement and binding probes on a continuous scale, where a completion gives a yes or a no. On a minimal pair, with $m_s$ the margin of the singular sentence and $m_p$ that of the plural one, the agreement effect is $A = (m_s + m_p)/2$ and the bias towards the plural is $W = (m_p - m_s)/2$.
-
-<div align="center">
-
-| margin, nats | v2.0 hybrid | v2.1, $K=3$ | v2.2 | v2.3 |
-| :--- | :---: | :---: | :---: | :---: |
-| *"The teacher, along with the students,"* `was` over `were` | +1.50 | $-0.67$ | +1.00 | +1.05 |
-| *"The teacher, along with the students who had arrived early,"* | +1.69 | $-0.63$ | +2.04 | +1.62 |
-| *"The teacher, along with the students who had arrived early that morning from the neighbouring village,"* | +2.16 | $-1.25$ | +1.09 | +1.32 |
-| the same with *"The teachers"* and *"the student"*, `were` over `was` | +2.26 | +4.06 | +2.86 | +2.89 |
-| agreement $A$ and plural bias $W$ on the pair | 2.21 and 0.05 | 1.41 and 2.65 | 1.97 and 0.89 | 2.10 and 0.78 |
-| *"The samples that the researchers collected from the lake bed during the summer expedition"* `were` over `was` | +4.73 | +4.93 | +2.67 | +3.76 |
-| the same with *"The sample"*, `was` over `were` | +2.85 | +4.47 | +2.54 | +1.42 |
-| agreement $A$ and plural bias $W$ on the pair | 3.79 and 0.94 | 4.70 and 0.23 | 2.60 and 0.07 | 2.59 and 1.17 |
-
-</div>
-
-The four orderings of the binding prompt (who is named first, who is asked) split its margin into the name asked, the position of the object (positive for the first one named) and the word (positive for `volcanoes`):
-
-<div align="center">
-
-| binding, nats | v2.0 hybrid | v2.1, $K=3$ | v2.2 | v2.3 |
-| :--- | :---: | :---: | :---: | :---: |
-| the name asked | +0.02 | +0.06 | $-0.50$ | $-0.39$ |
-| the first object named | +0.02 | +0.21 | +1.04 | +0.20 |
-| the word `volcanoes` | +0.07 | $-1.29$ | +1.23 | +1.46 |
-
-</div>
-
-v2.3 keeps the agreement of v2.2, with a larger bias towards the plural on the lake pair, 1.17 nats against 0.07. In the binding prompt the position of the object almost stops counting and the word decides: v2.3 prefers `volcanoes` in all four orderings. None of the four models binds the object to the name asked. The margins of v2.3 agree in float32 and float64 to the third decimal: the code of the head adds no near tie. The hybrid is the published `model.pt`, the rerun at 37.14.
+Outputs of `v2.3.0/generate.py` on the v2.3 checkpoint, seed 1234, one completion per prompt: the prose set is sampled at temperature 0.8 with top-k 200, every other set is greedy. The v2.2 column repeats the verdicts of [docs/v2.2.md](docs/v2.2.md), the v2.1 column those of [docs/v2.1.md](docs/v2.1.md), the v1 column the table of [docs/v1.md](docs/v1.md). Single completions are probes, not a benchmark: the [zero-shot benchmarks](#zero-shot-benchmarks) and the fluency test measure what one completion cannot. The log-prob margins of the agreement and binding probes, for the hybrid, v2.1, v2.2 and v2.3, are in [docs/v2.3.md](docs/v2.3.md#log-prob-margins-for-the-probes): none of the four models binds the object to the name asked.
 
 ---
 
 ## Quick start
 
-Training needs a GPU. `v2.3.0/model.py` is a single-file Colab script: it streams and tokenises FineWeb-Edu, then trains the runs listed in `CONFIGS`, saving checkpoints and histories to Drive. A run whose history is complete is skipped. In every version folder `generate.py` and `recurrent_check.py` are self-contained: they carry the classes of the trained model. 
+Training needs a GPU. `v2.4.0/model.py` and `v2.3.0/model.py` are single-file Colab scripts: they stream and tokenise FineWeb-Edu, then train the runs listed in `CONFIGS`, saving checkpoints and histories to Drive. A run whose history is complete is skipped. In every version folder `generate.py` and `recurrent_check.py` are self-contained: they carry the classes of the trained model.
 
-Those of v2.3.0, with `fluency.py`, read every model from Hugging Face, and `fluency.py` and `recurrent_check.py` rebuild the validation split from the FineWeb-Edu stream: they need nothing but themselves and the published weights. Those of the earlier versions take the weights from Hugging Face (`SOURCE = "hf"`, the default) or from Drive (`"drive"`). `v2.3.0/diagnostic.py` reads the histories of `v2.2.0/` and `v2.3.0/` and writes its figures next to itself. The scripts of v2.0 are in `v2.0.0/`, unchanged, and `diagnostic.py` runs as a Colab cell after `model.py`.
+The scripts of v2.3.0 and v2.4.0 read every model from Hugging Face, and `fluency.py` and `recurrent_check.py` rebuild the validation split from the FineWeb-Edu stream: they need nothing but themselves and the published weights. `zero_shot.py` also needs lm-eval; it runs about 160,000 requests for the three models, three quarters of them HellaSwag, several hours on one GPU, and writes its files after every task of every model, so that it starts again from the first one missing.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install torch matplotlib numpy tiktoken datasets huggingface_hub transformers tqdm
+pip install torch matplotlib numpy tiktoken datasets huggingface_hub transformers tqdm lm-eval
+
+python v2.4.0/model.py             # v2.4: tokenises FineWeb-Edu, trains the dense control on the 10,000 steps of v2.2 and v2.3
+python v2.4.0/zero_shot.py         # v2.4: ARC-Easy, PIQA and HellaSwag, zero shot, for the dense control, v2.2 and v2.3
+python v2.4.0/diagnostic.py        # v2.4: tables and figures against the dense control, from the histories of v2.2.0, v2.3.0 and v2.4.0
 
 python v2.3.0/model.py             # v2.3: tokenises FineWeb-Edu, trains the K=3 model with the spiking output head
-python v2.3.0/diagnostic.py        # v2.3: tables and figures against v2.2, v2.1, the hybrid and the dense control
+python v2.3.0/diagnostic.py        # v2.3: tables and figures against v2.2, v2.1, the hybrid and the dense control of v1
 python v2.3.0/generate.py          # v2.3: generation test against v2.2, weights from Hugging Face
 python v2.3.0/recurrent_check.py   # v2.3: parallel against recurrent form, weights from Hugging Face
 python v2.3.0/fluency.py           # v2.3: fluency against v2.2 on 30 prompts, scored with GPT-2 large
-
-python v2.2.0/model.py             # v2.2: tokenises FineWeb-Edu, trains the K=3 model with the scheduled surrogate
-python v2.2.0/diagnostic.py        # v2.2: tables and figures against v2.1, the hybrid and the dense control
-python v2.2.0/generate.py          # v2.2: generation test on the K=3 model, self-contained
-python v2.2.0/recurrent_check.py   # v2.2: parallel against recurrent form, self-contained
-python v2.2.0/fluency.py           # v2.2: fluency against v2.1 on 30 prompts, scored with GPT-2 large
-
-python v2.1.0/model.py             # v2.1: tokenises FineWeb-Edu, trains the three runs of the results
-python v2.1.0/generate.py          # v2.1: generation test on the K=3 model, self-contained
-python v2.1.0/recurrent_check.py   # v2.1: parallel against recurrent form on the K=3 model, self-contained
-
-python v2.0.0/model.py             # v1 and v2.0: the hybrid and its ablation
-python v2.0.0/generate.py          # v2.0: generation test, self-contained
-python v2.0.0/recurrent_check.py   # v2.0: parallel against recurrent form, self-contained
 ```
+
+The scripts of v2.2, v2.1 and v2.0 are in their folders, with the commands of their READMEs in [docs/](docs/).
 
 Loading the v2.3 checkpoint in the same session and generating one recurrent step per token:
 
@@ -520,7 +321,7 @@ out = model.generate_recurrent(idx, 200, temperature=0.8, top_k=200)
 print(decode(out[0].tolist()))
 ```
 
-The last argument of `FSGPT` chooses the decay: `True` for the data-dependent one, `False` for the fixed ladder. In `v2.3.0/model.py` the SSA model always carries the spiking head; the evaluation scripts of v2.3.0 take it out for a checkpoint that does not have it. On [Hugging Face](https://huggingface.co/Matt-94/FS-SSA-LM-100M) the file `model.pt` (about 1.8 GB) is the v2.0 hybrid at perplexity 37.14, `v2.1.0/model.pt` is the $K=3$ checkpoint the v2.1.0 scripts read (`HF_FILE`), `v2.2.0/model.pt` is the checkpoint of v2.2 and `v2.3.0/model.pt` the checkpoint of v2.3, both read by the scripts of v2.3.0.
+The last argument of `FSGPT` chooses the decay: `True` for the data-dependent one, `False` for the fixed ladder. In `v2.3.0/model.py` the SSA model always carries the spiking head; the evaluation scripts of v2.3.0 and v2.4.0 take it out for a checkpoint that does not have it. The dense control loads into the same classes as `FSGPT("softmax", "gelu", 2, False, False, QK_SCALE, MLP_SCALE, BLOCK, False, None, False)`. On [Hugging Face](https://huggingface.co/Matt-94/FS-SSA-LM-100M) the file `model.pt` (about 1.8 GB) is the v2.0 hybrid at perplexity 37.14, `v2.1.0/model.pt` is the $K=3$ checkpoint the v2.1.0 scripts read (`HF_FILE`), `v2.2.0/model.pt` is the checkpoint of v2.2, `v2.3.0/model.pt` the checkpoint of v2.3 and `dense/model.pt` the dense control of v2.4.0, the last three read by `v2.4.0/zero_shot.py`.
 
 ---
 
@@ -532,14 +333,16 @@ The last argument of `FSGPT` chooses the decay: `True` for the data-dependent on
 
 **Done in v2.3:** the input of the output head coded into spikes, so that every matrix product has a spike operand; the recurrent form verified on the trained v2.3 checkpoint; two more seeds to step 2,500; the fluency test run twice, with the loops set apart from the reference loss; evaluation scripts that read every model from Hugging Face.
 
-1. **Scaling to about 200M parameters, the next goal.** The v2.3 model at about 200M parameters, trained next to a dense control of the same size, to see whether the gap to the dense model, 0.0996 nats at 94M, closes with size. Both evaluated zero-shot on **ARC-Easy, PIQA and HellaSwag**, each answer scored by its log-likelihood, as the margins of the probes; chance is 25%, 50% and 25%. The first step needs no training: the same evaluation of the published checkpoints, from the v2.0 hybrid to v2.3.
+**Done in v2.4:** a dense control trained on the same 10,000 steps as v2.2 and v2.3; ARC-Easy, PIQA and HellaSwag zero shot for the dense control, v2.2 and v2.3, paired question by question.
+
+1. **Scaling to about 200M parameters, the next goal.** The v2.3 model at about 200M parameters, trained next to a dense control of the same size, to see whether the gap to the dense model, 0.18 nats and about one point of accuracy at 94M, closes with size. Both evaluated zero-shot on **ARC-Easy, PIQA and HellaSwag** with `v2.4.0/zero_shot.py`, against the numbers of this release.
 2. **Spikes counted on the trained model**, at every code and at the head, to turn the additions of [Spikes and floating point, per token](#spikes-and-floating-point-per-token) into an energy estimate.
 3. **The hybrid with the scheduled surrogate**, to measure what spiking the inputs still costs with the same backward pass.
 4. **The two stages of the surrogate gain, apart.** From one checkpoint in the stable phase of a warmup, stable, decay schedule (Hägele et al., 2024), two cooldowns: one narrowing the surrogate, one keeping it fixed.
 5. **Decay as a shift.** Values of $\gamma$ rounded to $1 - 2^{-n}$, so that the decay of the state becomes a shift and a subtraction.
 6. **Spiking RMSNorm.** Built and tested as a standalone module: the reciprocal square root as a product of factors $1 + 2^{-k}$ chosen by $K=2$ FS neurons, largest error $2^{-9} = 0.195\%$ over 47 decades of input.
 7. **Extended iteration budgets**, 50,000 to 100,000 steps, to find where the descent still visible at 10k steps settles.
-8. **Matched multi-seed runs** at full budget, for the v2.1, v2.2 and v2.3 runs and for the whole v1 ablation ladder.
+8. **Matched multi-seed runs** at full budget, for the v2.1, v2.2 and v2.3 runs, the dense control and the whole v1 ablation ladder.
 9. **WikiText-2** evaluation of the 25M architecture, for comparability with published numbers.
 
 ---
@@ -584,35 +387,63 @@ v2.3.0/                       v2.3: the spiking output head
 ├── results/fluency/          continuations, blind reading and reports of the fluency test
 └── figures/                  validation loss, the last evaluations, the paired difference, the seeds, the fluency test
 
+v2.4.0/                       v2.4: the dense control on 10,000 steps and the zero-shot benchmarks
+├── model.py                  the model.py of v2.3.0 with the dense control as the one entry of CONFIGS
+├── diagnostic.py             tables and figures: every run against the dense control, the two dense controls
+├── zero_shot.py              ARC-Easy, PIQA and HellaSwag zero shot through lm-eval; self-contained, weights from Hugging Face
+├── results/history/          training history of the dense control; the runs it is compared with are read from v2.2.0 and v2.3.0
+├── results/zero_shot/        every question of every model with its log-likelihoods, the accuracies and the printed report
+└── figures/                  validation loss with the dense control, the difference from it above the learning rate
+
 docs/
 ├── v1.md                     v1 in full: analysis, baseline halt, multi-seed, probes
 ├── v2.md                     v2.0: the recurrent form and its verification
 ├── v2.1.md                   v2.1: its README, with the probes and the figure of the K=3 model
-└── v2.2.md                   v2.2: its README, with the scheduled surrogate and the first fluency test
+├── v2.2.md                   v2.2: its README, with the scheduled surrogate and the first fluency test
+└── v2.3.md                   v2.3: its README, with the recurrent form, the three seeds, the two fluency tests and the margins
 CHANGELOG.md                  what changed in each version
 ```
 
 Each version folder holds its scripts together with the histories and figures they produced.
 
-Checkpoints are not in the repository: the pretrained weights are on [Hugging Face](https://huggingface.co/Matt-94/FS-SSA-LM-100M), `model.pt` for v2.0, `v2.1.0/model.pt` for the $K=3$ model of v2.1, `v2.2.0/model.pt` for v2.2 and `v2.3.0/model.pt` for v2.3.
+Checkpoints are not in the repository: the pretrained weights are on [Hugging Face](https://huggingface.co/Matt-94/FS-SSA-LM-100M), `model.pt` for v2.0, `v2.1.0/model.pt` for the $K=3$ model of v2.1, `v2.2.0/model.pt` for v2.2, `v2.3.0/model.pt` for v2.3 and `dense/model.pt` for the dense control of v2.4.0.
 
 ---
 
 ## References
 
 * Stöckl & Maass, *Optimized spiking neurons can classify images with high accuracy through temporal coding with two spikes*, Nature Machine Intelligence 3, 230–238 (2021).
+
 * Zhou et al., *Spikformer: When Spiking Neural Network Meets Transformer*, ICLR 2023.
+
 * Yao et al., *Spike-driven Transformer*, NeurIPS 2023.
+
 * Sun et al., *Retentive Network: A Successor to Transformer for Large Language Models*, 2023. The per-head decay ladder is the multi-scale decay of RetNet; v2 also uses its recurrent formulation.
+
 * Gu & Dao, *Mamba: Linear-Time Sequence Modeling with Selective State Spaces*, 2023. Decay computed from the input.
+
 * Dao & Gu, *Transformers are SSMs: Generalized Models and Efficient Algorithms Through Structured State Space Duality*, ICML 2024. The scalar decay per head, computed from the input, used by the gate of v2.1.
 * Linzen, Dupoux & Goldberg, *Assessing the Ability of LSTMs to Learn Syntax-Sensitive Dependencies*, TACL 2016.
+
 * Zenke & Vogels, *The Remarkable Robustness of Surrogate Gradient Learning for Instilling Complex Function in Spiking Neural Networks*, Neural Computation 33(4), 899–925 (2021). Learning is robust to the shape of the surrogate and sensitive to its scale.
+
 * Li et al., *Differentiable Spike: Rethinking Gradient-Descent for Training Spiking Neural Networks*, NeurIPS 2021. A surrogate whose sharpness changes during training.
+
 * Hägele et al., *Scaling Laws and Compute-Optimal Training Beyond Fixed Training Durations*, NeurIPS 2024. The warmup, stable, decay schedule.
+
 * Radford et al., *Language Models are Unsupervised Multitask Learners*, 2019. GPT-2; GPT-2 large scores the fluency test.
+
 * Karpathy, [nanoGPT](https://github.com/karpathy/nanoGPT). The baseline architecture and hyperparameters this follows.
+
 * Vaswani et al., *Attention Is All You Need*, NeurIPS 2017.
+
+* Clark et al., *Think you have Solved Question Answering? Try ARC, the AI2 Reasoning Challenge*, 2018. ARC-Easy.
+
+* Bisk et al., *PIQA: Reasoning about Physical Commonsense in Natural Language*, AAAI 2020.
+
+* Zellers et al., *HellaSwag: Can a Machine Really Finish Your Sentence?*, ACL 2019.
+
+* Gao et al., *The Language Model Evaluation Harness*, EleutherAI, [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness). The zero-shot evaluation of v2.4.0.
 
 * Lo Russo M.V., *Few-Spikes Transformer with Spiking Self-Attention*, https://doi.org/10.5281/zenodo.22048497
 
