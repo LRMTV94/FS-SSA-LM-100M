@@ -91,7 +91,7 @@ Up to v2.3 every table measured the gap to the dense control of v1: Softmax + GE
   <img src="v2.4.0/figures/difference.png" alt="Validation loss of v2.2 and of v2.3 minus the dense control at equal steps, one point per evaluation, above the learning rate of the three runs and the shorter schedule of the control of v1" width="90%">
 </p>
 
-The dense control has its best at step 9,500, 3.4554, and ends at 3.4705: from one evaluation to the next its validation estimate moves by up to 0.015 nats. Its checkpoint on Hugging Face, `dense/model.pt`, is the one of step 9,500, as for every run the checkpoint of its best evaluation.
+The dense control has its best at step 9,500, 3.4554, and ends at 3.4705: from one evaluation to the next its validation estimate moves by up to 0.015 nats. Its checkpoint on Hugging Face, `Dense_Baseline/model.pt`, is the one of step 9,500, as for every run the checkpoint of its best evaluation.
 
 The control of v1 was not saturated. [docs/v1.md](docs/v1.md) stopped it at step 7,500 because its validation loss had flattened, and read the flattening as saturation; its history records a schedule of 7,500 steps, so its learning rate had reached the minimum there. On the 10,000-step schedule the same model is at 3.5459 at step 7,500, with its learning rate still decaying, and goes on to 3.4554 at step 9,500. The gaps of v1, +0.0829 nats for the hybrid, were measured against a control with a quarter fewer tokens; against the new control the hybrid is 0.1674 nats behind.
 
@@ -136,7 +136,7 @@ The 95% intervals of a single accuracy are about $\pm 2.0$ points on ARC-Easy, $
 
 </div>
 
-With `acc_norm` the order of the validation loss holds on every task: the dense control first, then v2.2, then v2.3, about one point apart. With `acc` it **holds** on **ARC-Easy**, while on **PIQA** and **HellaSwag** the three models are within 0.6 points. Paired question by question, the gap between the dense control and v2.3 is resolved on ARC-Easy, on HellaSwag and on the mean of the three; the other gaps stay inside their intervals, the one between v2.2 and v2.3 included. 
+With `acc_norm` the order of the validation loss holds on every task: the dense control first, then v2.2, then v2.3, about one point apart. With `acc` it **holds** on **ARC-Easy**, while on **PIQA** and **HellaSwag** the three models are **within 0.6 points**. Paired question by question, the gap between the dense control and v2.3 is resolved on ARC-Easy, on HellaSwag and on the mean of the three; the other gaps stay inside their intervals, the one between v2.2 and v2.3 included. 
 
 The margin of a question, the log-likelihood of the right answer minus that of the best wrong one, moves on every question, where an accuracy moves only when a margin changes sign: on ARC-Easy and HellaSwag it puts the dense control ahead of both spiking models, by about one nat per question on HellaSwag, whose answers are whole sentences. PIQA separates none of the three. All three are close to chance on HellaSwag, 27 to 28% against 25%.
 
@@ -323,7 +323,7 @@ out = model.generate_recurrent(idx, 200, temperature=0.8, top_k=200)
 print(decode(out[0].tolist()))
 ```
 
-The last argument of `FSGPT` chooses the decay: `True` for the data-dependent one, `False` for the fixed ladder. In `v2.3.0/model.py` the SSA model always carries the spiking head; the evaluation scripts of v2.3.0 and v2.4.0 take it out for a checkpoint that does not have it. The dense control loads into the same classes as `FSGPT("softmax", "gelu", 2, False, False, QK_SCALE, MLP_SCALE, BLOCK, False, None, False)`. On [Hugging Face](https://huggingface.co/Matt-94/FS-SSA-LM-100M) the file `model.pt` (about 1.8 GB) is the v2.0 hybrid at perplexity 37.14, `v2.1.0/model.pt` is the $K=3$ checkpoint the v2.1.0 scripts read (`HF_FILE`), `v2.2.0/model.pt` is the checkpoint of v2.2, `v2.3.0/model.pt` the checkpoint of v2.3 and `dense/model.pt` the dense control of v2.4.0, the last three read by `v2.4.0/zero_shot.py`.
+The last argument of `FSGPT` chooses the decay: `True` for the data-dependent one, `False` for the fixed ladder. In `v2.3.0/model.py` the SSA model always carries the spiking head; the evaluation scripts of v2.3.0 and v2.4.0 take it out for a checkpoint that does not have it. The dense control loads into the same classes as `FSGPT("softmax", "gelu", 2, False, False, QK_SCALE, MLP_SCALE, BLOCK, False, None, False)`. On [Hugging Face](https://huggingface.co/Matt-94/FS-SSA-LM-100M) the file `model.pt` (about 1.8 GB) is the v2.0 hybrid at perplexity 37.14, `v2.1.0/model.pt` is the $K=3$ checkpoint the v2.1.0 scripts read (`HF_FILE`), `v2.2.0/model.pt` is the checkpoint of v2.2, `v2.3.0/model.pt` the checkpoint of v2.3 and `Dense_Baseline/model.pt` the dense control of v2.4.0, the last three read by `v2.4.0/zero_shot.py`.
 
 ---
 
@@ -415,7 +415,7 @@ CHANGELOG.md                  what changed in each version
 
 Each version folder holds its scripts together with the histories and figures they produced.
 
-Checkpoints are not in the repository: the pretrained weights are on [Hugging Face](https://huggingface.co/Matt-94/FS-SSA-LM-100M), `model.pt` for v2.0, `v2.1.0/model.pt` for the $K=3$ model of v2.1, `v2.2.0/model.pt` for v2.2, `v2.3.0/model.pt` for v2.3 and `dense/model.pt` for the dense control of v2.4.0.
+Checkpoints are not in the repository: the pretrained weights are on [Hugging Face](https://huggingface.co/Matt-94/FS-SSA-LM-100M), `model.pt` for v2.0, `v2.1.0/model.pt` for the $K=3$ model of v2.1, `v2.2.0/model.pt` for v2.2, `v2.3.0/model.pt` for v2.3 and `Dense_Baseline/model.pt` for the dense control of v2.4.0.
 
 ---
 
