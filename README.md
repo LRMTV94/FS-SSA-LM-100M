@@ -136,7 +136,9 @@ The 95% intervals of a single accuracy are about $\pm 2.0$ points on ARC-Easy, $
 
 </div>
 
-With `acc_norm` the order of the validation loss holds on every task: the dense control first, then v2.2, then v2.3, about one point apart. With `acc` it holds on ARC-Easy, while on PIQA and HellaSwag the three models are within 0.6 points. Paired question by question, the gap between the dense control and v2.3 is resolved on ARC-Easy, on HellaSwag and on the mean of the three; the other gaps stay inside their intervals, the one between v2.2 and v2.3 included. The margin of a question, the log-likelihood of the right answer minus that of the best wrong one, moves on every question, where an accuracy moves only when a margin changes sign: on ARC-Easy and HellaSwag it puts the dense control ahead of both spiking models, by about one nat per question on HellaSwag, whose answers are whole sentences. PIQA separates none of the three. All three are close to chance on HellaSwag, 27 to 28% against 25%.
+With `acc_norm` the order of the validation loss holds on every task: the dense control first, then v2.2, then v2.3, about one point apart. With `acc` it **holds** on **ARC-Easy**, while on **PIQA** and **HellaSwag** the three models are within 0.6 points. Paired question by question, the gap between the dense control and v2.3 is resolved on ARC-Easy, on HellaSwag and on the mean of the three; the other gaps stay inside their intervals, the one between v2.2 and v2.3 included. 
+
+The margin of a question, the log-likelihood of the right answer minus that of the best wrong one, moves on every question, where an accuracy moves only when a margin changes sign: on ARC-Easy and HellaSwag it puts the dense control ahead of both spiking models, by about one nat per question on HellaSwag, whose answers are whole sentences. PIQA separates none of the three. All three are close to chance on HellaSwag, 27 to 28% against 25%.
 
 At this scale the 0.16 to 0.18 nats of the spikes are worth about one point of accuracy, and the 0.025 nats of the spiking head stay inside the intervals. Every question of every model, with the log-likelihood of every choice, is in `v2.4.0/results/zero_shot`, together with the report printed by the script.
 
@@ -336,13 +338,20 @@ The last argument of `FSGPT` chooses the decay: `True` for the data-dependent on
 **Done in v2.4:** a dense control trained on the same 10,000 steps as v2.2 and v2.3; ARC-Easy, PIQA and HellaSwag zero shot for the dense control, v2.2 and v2.3, paired question by question.
 
 1. **Scaling to about 200M parameters, the next goal.** The v2.3 model at about 200M parameters, trained next to a dense control of the same size, to see whether the gap to the dense model, 0.18 nats and about one point of accuracy at 94M, closes with size. Both evaluated zero-shot on **ARC-Easy, PIQA and HellaSwag** with `v2.4.0/zero_shot.py`, against the numbers of this release.
+
 2. **Spikes counted on the trained model**, at every code and at the head, to turn the additions of [Spikes and floating point, per token](#spikes-and-floating-point-per-token) into an energy estimate.
 3. **The hybrid with the scheduled surrogate**, to measure what spiking the inputs still costs with the same backward pass.
+
 4. **The two stages of the surrogate gain, apart.** From one checkpoint in the stable phase of a warmup, stable, decay schedule (Hägele et al., 2024), two cooldowns: one narrowing the surrogate, one keeping it fixed.
+
 5. **Decay as a shift.** Values of $\gamma$ rounded to $1 - 2^{-n}$, so that the decay of the state becomes a shift and a subtraction.
+
 6. **Spiking RMSNorm.** Built and tested as a standalone module: the reciprocal square root as a product of factors $1 + 2^{-k}$ chosen by $K=2$ FS neurons, largest error $2^{-9} = 0.195\%$ over 47 decades of input.
+
 7. **Extended iteration budgets**, 50,000 to 100,000 steps, to find where the descent still visible at 10k steps settles.
+
 8. **Matched multi-seed runs** at full budget, for the v2.1, v2.2 and v2.3 runs, the dense control and the whole v1 ablation ladder.
+
 9. **WikiText-2** evaluation of the 25M architecture, for comparability with published numbers.
 
 ---
