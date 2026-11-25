@@ -43,7 +43,8 @@
 #  The forward pass gains the head code: the scripts of v2.2.0 need the
 #  same FSGPT to load a checkpoint of this run.
 #
-#  CONFIGS holds one run: the v2.3.0 run, K=3, with the spiking head.
+#  #  CONFIGS holds one run: the dense control, Softmax + GELU on the
+#  10,000 steps, learning rate and data of v2.2.0 and v2.3.0.
 # =====================================================================
 
 import glob
@@ -128,11 +129,11 @@ gamma_window = lambda g: float("inf") if g >= 1.0 else 1.0 / (1.0 - g)
 #                 with the thresholds above for every K
 #   gamma      -> the per-head ladder: the decay of the fixed runs, the start of the gates otherwise
 #   data_decay -> False: fixed ladder | True: data-dependent decay
-#   name       -> new, so neither the older runs with the float head are resumed or overwritten
+#   name       -> new, so the dense control of v1, softmax + gelu on 7,500 steps, is neither resumed nor overwritten
 
 CONFIGS = [
     ("softmax + gelu 10k", "softmax", "gelu", 2, False, False, BLOCK, False, None, False),
-    ("ssa K=3 +/- L g var alpha app data decay width sched spike head", "ssa", "fs", 3, True, True, BLOCK, True, gamma_ladder(N_HEADS, W_MIN, W_MAX), True),
+    #("ssa K=3 +/- L g var alpha app data decay width sched spike head", "ssa", "fs", 3, True, True, BLOCK, True, gamma_ladder(N_HEADS, W_MIN, W_MAX), True),
 ]
 
 # =====================================================================

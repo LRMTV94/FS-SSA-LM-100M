@@ -1176,4 +1176,4 @@ with open(f"{OUT}/fluency_blind.txt", "w") as f:
 with open(f"{OUT}/fluency_blind_key.json", "w") as f:
     json.dump(key, f, indent=1)
 
-print(f"\nwritten to {OUT}: fluency_samples.jsonl, fluency_head_blind.txt, fluency_blind_key.json")
+print(f"\nwritten to {OUT}: fluency_samples.jsonl, fluency_blind.txt, fluency_blind_key.json")

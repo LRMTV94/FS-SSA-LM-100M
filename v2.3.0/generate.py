@@ -9,7 +9,7 @@
 #  it twice.
 #
 #  Self-contained: it defines the model as it was trained (the classes of
-#  model_v22_head.py, those of v2.3.0/model.py with the final RMSNorm read
+#  v2.3.0/model.py, those of v2.2.0/model.py with the final RMSNorm read,
 #  by a signed FS pair before W_head; SignedFSNeuron keeps its gain as
 #  alpha1, the name in the checkpoints), the tokenizer and the sampler, so
 #  it depends on nothing in the session. The surrogate width only enters
