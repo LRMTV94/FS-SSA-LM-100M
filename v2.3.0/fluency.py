@@ -1145,7 +1145,7 @@ for other in [a["label"] for a in arms[1:]]:
 #  fluency_samples.jsonl holds every continuation with its scores.
 #  fluency_blind.txt shows, for every prompt and seed, the
 #  continuations of the arms in a random order under the letters A, B,
-#  ...; the order is in fluency_head_blind_key.json, to open after
+#  ...; the order is in fluency_blind_key.json, to open after
 #  reading. OUT is the working folder of the runtime: on Colab, download
 #  them from the file panel.
 # -------------------------------------------------------------------

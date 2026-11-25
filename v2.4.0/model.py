@@ -1,5 +1,5 @@
 # =====================================================================
-#  FS^2-SSA v2.3.0 (spiking head): BPE GPT on FineWeb-Edu (~94M)
+#  FS^2-SSA v2.4.0 (spiking head): BPE GPT on FineWeb-Edu (~94M)
 #  SPIKING RESIDUAL HIGHWAY EDITION (Membrane Shortcut / All-AC Block)
 #
 #  Single-file Colab script. Runtime > Change runtime type > GPU (A100)
@@ -43,7 +43,7 @@
 #  The forward pass gains the head code: the scripts of v2.2.0 need the
 #  same FSGPT to load a checkpoint of this run.
 #
-#  #  CONFIGS holds one run: the dense control, Softmax + GELU on the
+#  CONFIGS holds one run: the dense control, Softmax + GELU on the
 #  10,000 steps, learning rate and data of v2.2.0 and v2.3.0.
 # =====================================================================
 
