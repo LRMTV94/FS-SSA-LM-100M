@@ -21,7 +21,7 @@
 #  validation split of model.py, whose real continuation is scored too, as
 #  the human reference.
 #
-#  Self-contained like generate.py: the classes of model_v22_head.py,
+#  Self-contained like generate.py: the classes of v2.3.0/model.py,
 #  which load the checkpoints without the head code too, v2.2.0 and
 #  v2.1.0, with the head in floats. Everything comes from Hugging Face, so
 #  the test can be rerun by anyone with this script alone: the weights of
@@ -1142,8 +1142,8 @@ for other in [a["label"] for a in arms[1:]]:
 #                                 SAVE
 # --------------------------------------------------------------------
 #
-#  fluency_head_samples.jsonl holds every continuation with its scores.
-#  fluency_head_blind.txt shows, for every prompt and seed, the
+#  fluency_samples.jsonl holds every continuation with its scores.
+#  fluency_blind.txt shows, for every prompt and seed, the
 #  continuations of the arms in a random order under the letters A, B,
 #  ...; the order is in fluency_head_blind_key.json, to open after
 #  reading. OUT is the working folder of the runtime: on Colab, download
@@ -1156,13 +1156,13 @@ for s in samples:
     s["prompt_text"] = decode(s["prompt_ids"])
     s["text"] = decode(s["ids"])
 
-with open(f"{OUT}/fluency_head_samples.jsonl", "w") as f:
+with open(f"{OUT}/fluency_samples.jsonl", "w") as f:
     for s in samples:
         f.write(json.dumps({k: v for k, v in s.items() if k not in ("prompt_ids", "ids")}) + "\n")
 
 shuffle = random.Random(SEED)
 key = {}
-with open(f"{OUT}/fluency_head_blind.txt", "w") as f:
+with open(f"{OUT}/fluency_blind.txt", "w") as f:
     for i, (group, ids, _) in enumerate(prompts):
         for j in range(SEEDS_PER_PROMPT):
             rows = [s for s in samples if s["prompt"] == i and s["seed"] == j and s["arm"] != "human"]
@@ -1173,7 +1173,7 @@ with open(f"{OUT}/fluency_head_blind.txt", "w") as f:
                 f.write(f"\n  {chr(65 + n)}:  " + r["text"].replace("\n", "\n      ") + "\n")
             f.write("\n")
 
-with open(f"{OUT}/fluency_head_blind_key.json", "w") as f:
+with open(f"{OUT}/fluency_blind_key.json", "w") as f:
     json.dump(key, f, indent=1)
 
-print(f"\nwritten to {OUT}: fluency_head_samples.jsonl, fluency_head_blind.txt, fluency_head_blind_key.json")
+print(f"\nwritten to {OUT}: fluency_samples.jsonl, fluency_head_blind.txt, fluency_blind_key.json")

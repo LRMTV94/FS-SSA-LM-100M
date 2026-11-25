@@ -28,6 +28,8 @@ A dense control trained on the recipe of v2.2 and v2.3, and the dense control, v
 
 * **`v2.4.0/zero_shot.py`, zero-shot benchmarks.** ARC-Easy (test split, 2,376 questions), PIQA (validation, 1,838) and HellaSwag (validation, 10,042) through the LM Evaluation Harness, for the dense control, v2.2 and v2.3. Every choice is scored by its log-likelihood, one sequence per forward pass; `acc`, `acc_norm` and the margin of every question are compared pair by pair, question by question, with 95% intervals over the questions. Self-contained, with the classes of v2.3.0 and the weights from Hugging Face; it writes its files after every task of every model and starts again from the first one missing.
 
+* `v2.4.0/diagnostic.py`: the diagnostic of v2.3.0 with the dense control of v2.4.0 as the reference. It reads the runs of `v2.2.0/results/history` and `v2.3.0/results/history` and the dense control, each found by the name and the seed it stores. It prints every run against the dense control, the paired table of v2.2 and v2.3 against it and the two dense controls at equal steps, and writes two figures to `v2.4.0/figures`: the validation loss of every run, the two dense controls included, and the difference of v2.2 and v2.3 from the dense control at equal steps, above the learning rate of the three runs and the shorter one of the control of v1.
+
 * **Results** in `v2.4.0/results/zero_shot`: every question of every model with the log-likelihood of every choice, the accuracies as lm-eval reports them, and the printed report. With `acc_norm`, on ARC-Easy, PIQA and HellaSwag: the dense control 40.19, 58.43 and 27.98 (mean 42.20), v2.2 39.73, 57.45 and 27.39 (41.53), v2.3 38.51, 56.96 and 27.01 (40.83). Paired, the dense control is ahead of v2.3 by 1.38 ± 0.81 points on the mean of the three; the other pairs stay inside their intervals, while the margins put the dense control ahead of both spiking models on ARC-Easy and HellaSwag.
 
 ### Changed
@@ -36,7 +38,7 @@ A dense control trained on the recipe of v2.2 and v2.3, and the dense control, v
 
 * **The control of v1 was not saturated.** `docs/v1.md` stops it at step 7,500 because its validation loss had flattened, and reads the flattening as saturation. Its history records a schedule of 7,500 steps, so its learning rate had reached the minimum there: on the 10,000-step schedule the same model is at 3.5459 at step 7,500 and goes on to 3.4554 at step 9,500, 0.0845 nats below the control of v1. Nor did that control have the token budget of the spiking runs, as the entry of v1.0.0 says: 7,500 steps, 491M tokens, against 10,000 and 655M. `docs/v1.md` and the entries below stay as they were published; the README no longer calls that control compute-matched.
 
-* The README is lighter: the results with the new reference, a section on the dense control, one on the zero-shot benchmarks and the spiking output head in brief. The sections on v2.1 and v2.2 leave it, since their READMEs are in `docs/`, and the tables of the recurrent form, the seeds, the fluency tests and the margins of v2.3 stay in its README, which moves to `docs/v2.3.md`, unchanged apart from its relative links.
+* The README is lighter: the results with the new reference, a section on the dense control, one on the zero-shot benchmarks and the spiking output head in brief. The sections on v2.1 and v2.2 leave it, since their READMEs are in `docs/`, and the tables of the recurrent form, the seeds, the fluency tests and the margins of v2.3 stay in its README, which moves to `docs/v2.3.md`, unchanged apart from its relative links. Its figures are those of `v2.4.0/figures`, with the paired difference of v2.3 and v2.2 from `v2.3.0/figures`.
 
 ### Fixed
 
@@ -45,6 +47,8 @@ A dense control trained on the recipe of v2.2 and v2.3, and the dense control, v
 * `v2.3.0/current_check.py` is renamed `v2.3.0/recurrent_check.py`, the name the README and this changelog give it.
 
 * `v2.0.0/generate.py` builds its model again. `Block` and `FSGPT` called `SpikingRMSNorm`, a class the file does not define, and stopped with a `NameError` in a new session; they call `RMSNorm`, the class the file defines, with the same code and the same keys.
+
+* `docs/v1.md` and `docs/v2.md` show their training curves again. They pointed to `figures/summary_grid.png`, which v2.1.0 moved to `v2.0.0/figures`, and point there now.
 
 ### Known limits
 

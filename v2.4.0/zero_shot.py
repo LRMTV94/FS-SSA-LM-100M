@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------
-#       ZERO-SHOT BENCHMARKS, v2.3.0: ARC-EASY, PIQA, HELLASWAG
+#       ZERO-SHOT BENCHMARKS, v2.4.0: ARC-EASY, PIQA, HELLASWAG
 # --------------------------------------------------------------------
 #
 #  v2.3 and v2.2 next to the dense control on multiple-choice
@@ -36,7 +36,7 @@
 #  on how the requests are grouped. Every question of every arm is
 #  written to OUT.
 #
-#  Use this command before launching the program:
+#  Use this command before launching the script:
 #  !pip install -q lm-eval tiktoken
 # --------------------------------------------------------------------
 
@@ -818,7 +818,7 @@ class FSGPT(nn.Module):
 #   block, use_decay, gamma, data_decay), as in generate.py. Every pair
 #  of arms is compared, the earlier of CONFIGS minus the later. Whether
 #  the head reads spikes is taken from the checkpoint, not from CONFIGS.
-#  The dense control is dense/model.pt in HF_REPO: if it is uploaded
+#  The dense control is Dense_Baseline/model.pt in HF_REPO: if it is uploaded
 #  under another name, change it here.
 # =====================================================================
 
@@ -826,11 +826,9 @@ CONFIGS = [
 
     ("Dense_Baseline/model.pt", "dense, softmax + GELU", "softmax", "gelu", 2, False, False, BLOCK, False, None, False),
 
-    ("v2.2.0/model.pt", "v2.2, float head", "ssa", "fs", 3, True, True, BLOCK, True,
-     gamma_ladder(N_HEADS, W_MIN, W_MAX), True),
+    ("v2.2.0/model.pt", "v2.2, float head", "ssa", "fs", 3, True, True, BLOCK, True, gamma_ladder(N_HEADS, W_MIN, W_MAX), True),
 
-    ("v2.3.0/model.pt", "v2.3, spiking head", "ssa", "fs", 3, True, True, BLOCK, True,
-     gamma_ladder(N_HEADS, W_MIN, W_MAX), True),
+    ("v2.3.0/model.pt", "v2.3, spiking head", "ssa", "fs", 3, True, True, BLOCK, True, gamma_ladder(N_HEADS, W_MIN, W_MAX), True),
 ]
 
 #  Task names of lm-eval, run in this order. OUT on Drive, when it
